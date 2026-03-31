@@ -177,16 +177,18 @@ export async function GET(req: NextRequest) {
       studentSpendMap[sid].count++
     }
 
-    // Payment method
-    const pm = p.paymentMethod ?? 'UNKNOWN'
-    paymentMethodBreakdown[pm] = (paymentMethodBreakdown[pm] ?? 0) + 1
+    // Payment method — só para compras ativas (completed ou scheduled)
+    const isActive = status === COMPLETED_STATUS || status === SCHEDULED_STATUS
+    if (isActive && p.paymentMethod) {
+      paymentMethodBreakdown[p.paymentMethod] = (paymentMethodBreakdown[p.paymentMethod] ?? 0) + 1
+    }
 
-    // Billing type
+    // Billing type — todas as compras do período
     if (p.billingType === 'RECURRING') { recurringCount++; recurringRevenue += amount }
     else if (p.billingType === 'ONE_TIME') { oneTimeCount++; oneTimeRevenue += amount }
 
-    // Recurrence interval
-    if (p.recurrenceInterval) {
+    // Recurrence interval — só compras ativas
+    if (isActive && p.recurrenceInterval) {
       recurrenceBreakdown[p.recurrenceInterval] = (recurrenceBreakdown[p.recurrenceInterval] ?? 0) + 1
     }
 
