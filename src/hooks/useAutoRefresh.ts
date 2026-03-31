@@ -21,9 +21,16 @@ export interface MetricsState {
   refresh: () => void
 }
 
-export function useAutoRefresh(): MetricsState {
+interface Options {
+  from: string  // YYYY-MM-DD
+  to: string    // YYYY-MM-DD
+}
+
+export function useAutoRefresh({ from, to }: Options): MetricsState {
+  const url = `/api/metrics?from=${from}&to=${to}`
+
   const { data, error, isLoading, mutate } = useSWR<MetricsResponse>(
-    '/api/metrics',
+    url,
     fetcher,
     {
       refreshInterval: ONE_HOUR,

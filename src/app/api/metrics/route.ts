@@ -1,4 +1,4 @@
-import { NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
 import { getMuvxToken, muvxGet } from '@/lib/api'
 import type { MetricsResponse, Purchase, TopPersonal } from '@/lib/types'
 
@@ -69,8 +69,27 @@ const SCHEDULED_STATUS = 'SCHEDULED'
 const MUVX_FEE_PCT = 0.02
 const MUVX_FEE_FIXED = 3.99
 
-export async function GET() {
+function toStartOfDay(dateStr: string): string {
+  return `${dateStr}T00:00:00.000Z`
+}
+
+function toEndOfDay(dateStr: string): string {
+  return `${dateStr}T23:59:59.999Z`
+}
+
+export async function GET(req: NextRequest) {
   const errors: string[] = []
+
+  // Período via query params — default: mês corrente
+  const { searchParams } = new URL(req.url)
+  const now = new Date()
+  const defaultFrom = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0]
+  const defaultTo = now.toISOString().split('T')[0]
+  const fromDate = searchParams.get('from') ?? defaultFrom
+  const toDate = searchParams.get('to') ?? defaultTo
+
+  const createdFrom = toStartOfDay(fromDate)
+  const createdTo = toEndOfDay(toDate)
 
   let token: string
   try {
@@ -82,13 +101,18 @@ export async function GET() {
     )
   }
 
+  // Totais globais não dependem de período
+  // Purchases e personals filtrados pelo período
+  const purchasesPath = `/admin/purchases?limit=100&page=1&createdFrom=${encodeURIComponent(createdFrom)}&createdTo=${encodeURIComponent(createdTo)}`
+  const personalsPath = `/admin/personals?limit=100&page=1&createdFrom=${encodeURIComponent(createdFrom)}&createdTo=${encodeURIComponent(createdTo)}`
+
   const [dashboardResult, statsResult, overviewResult, purchasesResult, personalsResult] =
     await Promise.allSettled([
       muvxGet<AdminDashboard>('/admin/dashboard', token),
       muvxGet<AdminStats>('/admin/dashboard/stats', token),
       muvxGet<AdminOverview>('/admin/stats/overview', token),
-      muvxGet<AdminPurchasesResponse>('/admin/purchases?limit=100&page=1', token),
-      muvxGet<AdminPersonalsResponse>('/admin/personals?limit=100&page=1', token),
+      muvxGet<AdminPurchasesResponse>(purchasesPath, token),
+      muvxGet<AdminPersonalsResponse>(personalsPath, token),
     ])
 
   const dashboard = dashboardResult.status === 'fulfilled' ? dashboardResult.value : null
@@ -103,7 +127,7 @@ export async function GET() {
   if (!purchasesData) errors.push('admin/purchases indisponível')
   if (!personalsData) errors.push('admin/personals indisponível')
 
-  // --- Totais básicos ---
+  // --- Totais globais (não mudam com período) ---
   const totalUsers = dashboard?.totals?.users ?? 0
   const totalStudents = dashboard?.totals?.students ?? 0
   const totalPersonals = dashboard?.totals?.personals ?? 0
@@ -118,7 +142,7 @@ export async function GET() {
   const crefVerified = stats?.cref?.verified ?? 0
   const crefPending = stats?.cref?.pending ?? 0
 
-  // --- Purchases ---
+  // --- Purchases no período ---
   const rawPurchases: RawPurchase[] = purchasesData?.data ?? []
   const purchasesTotal = purchasesData?.total ?? rawPurchases.length
 
@@ -135,7 +159,6 @@ export async function GET() {
     const status = p.status ?? 'UNKNOWN'
     purchasesByStatus[status] = (purchasesByStatus[status] ?? 0) + 1
 
-    // Agrega por personal
     const pid = p.personal?.id
     if (pid) {
       if (!personalSalesMap[pid]) {
@@ -159,25 +182,22 @@ export async function GET() {
     }
   }
 
-  // Contagens de status
   const completedSales = purchasesByStatus[COMPLETED_STATUS] ?? 0
   const scheduledSales = purchasesByStatus[SCHEDULED_STATUS] ?? 0
   const cancelledSales = CANCELLED_STATUSES.reduce((sum, s) => sum + (purchasesByStatus[s] ?? 0), 0)
 
-  // Receita = soma das vendas COMPLETED
   const revenueInPeriod = rawPurchases
     .filter(p => p.status === COMPLETED_STATUS)
     .reduce((sum, p) => sum + Number(p.totalAmount ?? 0), 0)
 
-  // Faturamento MUVX = 2% sobre cada venda concluída + R$3,99 por venda concluída
   const muvxRevenue = revenueInPeriod * MUVX_FEE_PCT + completedSales * MUVX_FEE_FIXED
 
-  // --- Personais com produto e com venda ---
+  // --- Personais cadastrados no período ---
   const rawPersonals: RawPersonal[] = personalsData?.data ?? []
   const personalsWithProduct = rawPersonals.filter(p => (p._count?.products ?? 0) > 0).length
   const personalsWithSale = rawPersonals.filter(p => (p._count?.salesReceived ?? 0) > 0).length
 
-  // --- Top Personais (baseado nas purchases carregadas) ---
+  // --- Top Personais no período ---
   const topPersonals: TopPersonal[] = Object.entries(personalSalesMap)
     .map(([personalId, s]) => {
       const muvxRev = s.revenue * MUVX_FEE_PCT + s.completed * MUVX_FEE_FIXED
@@ -195,10 +215,10 @@ export async function GET() {
     .sort((a, b) => b.grossRevenue - a.grossRevenue || b.totalSales - a.totalSales)
     .slice(0, 10)
 
-  // --- Conversão: personais que venderam / total de personais cadastrados ---
-  const conversionRate = totalPersonals > 0 ? (personalsWithSale / totalPersonals) * 100 : 0
+  // Conversão: personais com venda no período / total de personais cadastrados no período
+  const periodPersonalsTotal = rawPersonals.length
+  const conversionRate = periodPersonalsTotal > 0 ? (personalsWithSale / periodPersonalsTotal) * 100 : 0
 
-  // --- Recent Purchases (top 10) ---
   const recentPurchases: Purchase[] = rawPurchases.slice(0, 10).map((p) => ({
     id: p.id ?? '',
     studentName: p.student?.name ?? null,

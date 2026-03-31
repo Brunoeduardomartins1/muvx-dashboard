@@ -2,7 +2,9 @@
 
 import { Users, UserCheck, DollarSign, TrendingUp, XCircle, Clock, Package, ShoppingCart, Percent } from 'lucide-react'
 import { useAutoRefresh } from '@/hooks/useAutoRefresh'
+import { usePeriod } from '@/hooks/usePeriod'
 import { Header } from './Header'
+import { PeriodFilter } from './PeriodFilter'
 import { StatCard } from './StatCard'
 import { BarChartComponent } from './BarChartComponent'
 import { ConversionRing } from './ConversionRing'
@@ -15,7 +17,11 @@ import { StatCardSkeleton } from '@/components/ui/Skeleton'
 const REVENUE_GOAL = Number(process.env.NEXT_PUBLIC_MUVX_GOAL ?? 50000)
 
 export function DashboardClient() {
-  const { data, isLoading, isError, lastUpdated, refresh } = useAutoRefresh()
+  const { period, selectPreset, selectCustom } = usePeriod()
+  const { data, isLoading, isError, lastUpdated, refresh } = useAutoRefresh({
+    from: period.from,
+    to: period.to,
+  })
 
   const showSkeletons = isLoading && !data
 
@@ -24,6 +30,18 @@ export function DashboardClient() {
       <Header lastUpdated={lastUpdated} isLoading={isLoading} onRefresh={refresh} />
 
       <main className="max-w-[1440px] mx-auto px-6 py-8 space-y-6">
+
+        {/* Filtro de período */}
+        <section className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4">
+          <span className="text-xs font-sans font-600 uppercase tracking-widest flex-shrink-0" style={{ color: 'var(--text-muted)' }}>
+            Período
+          </span>
+          <PeriodFilter
+            period={period}
+            onSelectPreset={selectPreset}
+            onSelectCustom={selectCustom}
+          />
+        </section>
 
         {/* Erro de conexão */}
         {isError && !data && (
@@ -38,7 +56,6 @@ export function DashboardClient() {
           </div>
         )}
 
-        {/* Avisos de endpoints parcialmente indisponíveis */}
         {data?.errors && data.errors.length > 0 && (
           <div
             className="rounded-xl px-6 py-3"
@@ -50,7 +67,7 @@ export function DashboardClient() {
           </div>
         )}
 
-        {/* Row 1 — Usuários e Alunos */}
+        {/* Row 1 — Usuários */}
         <section className="grid grid-cols-1 md:grid-cols-3 gap-6" aria-label="Usuários">
           {showSkeletons ? (
             <><StatCardSkeleton dark /><StatCardSkeleton dark /><StatCardSkeleton dark /></>
@@ -83,7 +100,7 @@ export function DashboardClient() {
           )}
         </section>
 
-        {/* Row 2 — Engajamento de Personais */}
+        {/* Row 2 — Engajamento de Personais no período */}
         <section className="grid grid-cols-1 md:grid-cols-3 gap-6" aria-label="Engajamento de personais">
           {showSkeletons ? (
             <><StatCardSkeleton /><StatCardSkeleton /><StatCardSkeleton /></>
@@ -112,7 +129,7 @@ export function DashboardClient() {
           )}
         </section>
 
-        {/* Row 3 — Vendas e Financeiro */}
+        {/* Row 3 — Vendas e Financeiro no período */}
         <section className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6" aria-label="Vendas e financeiro">
           {showSkeletons ? (
             <><StatCardSkeleton dark /><StatCardSkeleton dark /><StatCardSkeleton dark /><StatCardSkeleton dark /></>
@@ -144,7 +161,7 @@ export function DashboardClient() {
                 value={data?.revenueInPeriod ?? 0}
                 format="currency"
                 icon={<DollarSign size={16} />}
-                sublabel={`Fat. MUVX: R$ ${((data?.muvxRevenue ?? 0)).toFixed(2).replace('.', ',')}`}
+                sublabel={`Fat. MUVX: R$ ${(data?.muvxRevenue ?? 0).toFixed(2).replace('.', ',')}`}
               />
             </>
           )}
@@ -193,7 +210,7 @@ export function DashboardClient() {
 
       <footer className="text-center py-6">
         <p className="text-xs font-sans" style={{ color: 'var(--text-muted)' }}>
-          MUVX Dashboard · Atualização automática a cada hora
+          MUVX Dashboard · {period.label} · Atualização automática a cada hora
         </p>
       </footer>
     </div>
