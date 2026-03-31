@@ -1,7 +1,7 @@
 'use client'
 
-import { useEffect } from 'react'
-import { X } from 'lucide-react'
+import { useEffect, useState, useMemo } from 'react'
+import { X, Search } from 'lucide-react'
 import type { Purchase, PersonalRow } from '@/lib/types'
 import { fmtBRL, fmtDate, fmtNum, PAYMENT_METHOD_LABELS } from '@/lib/utils'
 import { StatusBadge } from '@/components/ui/Badge'
@@ -22,8 +22,27 @@ interface PersonalsModal {
 
 type Props = (PurchasesModal | PersonalsModal) & { onClose: () => void }
 
+const STATUS_OPTIONS = [
+  { value: '', label: 'Todos os status' },
+  { value: 'COMPLETED', label: 'Concluído' },
+  { value: 'ACTIVE', label: 'Ativo' },
+  { value: 'SCHEDULED', label: 'Agendado' },
+  { value: 'CANCELLED', label: 'Cancelado' },
+  { value: 'CANCELLED_BY_STUDENT', label: 'Canc. pelo aluno' },
+  { value: 'CANCELLED_BY_PERSONAL', label: 'Canc. pelo personal' },
+  { value: 'PENDING', label: 'Pendente' },
+]
+
+const inputStyle = {
+  backgroundColor: 'var(--bg-page)',
+  border: '1px solid var(--border-color)',
+  color: 'var(--text-primary)',
+} as const
+
 export function DrillDownModal(props: Props) {
   const { title, subtitle, onClose } = props
+  const [search, setSearch] = useState('')
+  const [statusFilter, setStatusFilter] = useState('')
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose() }
@@ -36,7 +55,32 @@ export function DrillDownModal(props: Props) {
     return () => { document.body.style.overflow = '' }
   }, [])
 
-  const count = props.items.length
+  const filteredItems = useMemo(() => {
+    const q = search.toLowerCase().trim()
+    if (props.kind === 'purchases') {
+      return props.items.filter((p: Purchase) => {
+        if (statusFilter && p.status !== statusFilter) return false
+        if (!q) return true
+        return (
+          (p.studentName ?? '').toLowerCase().includes(q) ||
+          (p.personalName ?? '').toLowerCase().includes(q) ||
+          (p.planName ?? '').toLowerCase().includes(q) ||
+          (p.paymentMethod ?? '').toLowerCase().includes(q)
+        )
+      })
+    } else {
+      return props.items.filter((p: PersonalRow) => {
+        if (!q) return true
+        return (
+          p.personalName.toLowerCase().includes(q) ||
+          (p.email ?? '').toLowerCase().includes(q)
+        )
+      })
+    }
+  }, [props, search, statusFilter])
+
+  const total = props.items.length
+  const count = filteredItems.length
 
   return (
     <div
@@ -65,6 +109,36 @@ export function DrillDownModal(props: Props) {
           </button>
         </div>
 
+        {/* Filter bar */}
+        <div className="px-8 py-3 flex items-center gap-2 flex-shrink-0" style={{ borderBottom: '1px solid var(--border-color)', backgroundColor: 'var(--bg-card)' }}>
+          <div className="relative flex-1 max-w-xs">
+            <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" style={{ color: 'var(--text-muted)' }} />
+            <input
+              type="text"
+              placeholder="Buscar..."
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+              className="w-full pl-8 pr-3 py-1.5 text-xs font-sans rounded-lg outline-none"
+              style={inputStyle}
+            />
+          </div>
+          {props.kind === 'purchases' && (
+            <select
+              value={statusFilter}
+              onChange={e => setStatusFilter(e.target.value)}
+              className="px-3 py-1.5 text-xs font-sans rounded-lg outline-none"
+              style={inputStyle}
+            >
+              {STATUS_OPTIONS.map(o => (
+                <option key={o.value} value={o.value}>{o.label}</option>
+              ))}
+            </select>
+          )}
+          <span className="text-xs font-sans ml-auto flex-shrink-0" style={{ color: 'var(--text-muted)' }}>
+            {count === total ? `${total} registros` : `${count} de ${total}`}
+          </span>
+        </div>
+
         {/* Body */}
         <div className="overflow-y-auto flex-1">
           {count === 0 ? (
@@ -72,17 +146,14 @@ export function DrillDownModal(props: Props) {
               <p className="text-sm font-sans" style={{ color: 'var(--text-muted)' }}>Nenhum registro encontrado.</p>
             </div>
           ) : props.kind === 'purchases' ? (
-            <PurchasesTable items={props.items} />
+            <PurchasesTable items={filteredItems as Purchase[]} />
           ) : (
-            <PersonalsTable items={props.items} />
+            <PersonalsTable items={filteredItems as PersonalRow[]} />
           )}
         </div>
 
         {/* Footer */}
-        <div className="px-8 py-4 flex-shrink-0 flex items-center justify-between" style={{ borderTop: '1px solid var(--border-color)' }}>
-          <span className="text-xs font-sans" style={{ color: 'var(--text-muted)' }}>
-            {count} {count === 1 ? 'registro' : 'registros'}
-          </span>
+        <div className="px-8 py-4 flex-shrink-0 flex items-center justify-end" style={{ borderTop: '1px solid var(--border-color)' }}>
           <button
             onClick={onClose}
             className="px-4 py-2 rounded-lg text-xs font-sans font-600 border transition-all duration-150"

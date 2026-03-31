@@ -1,5 +1,7 @@
 'use client'
 
+import { useState, useMemo } from 'react'
+import { Search } from 'lucide-react'
 import type { Purchase } from '@/lib/types'
 import { fmtBRL, fmtDate, PAYMENT_METHOD_LABELS } from '@/lib/utils'
 import { StatusBadge } from '@/components/ui/Badge'
@@ -10,7 +12,35 @@ interface Props {
   isLoading?: boolean
 }
 
+const STATUS_OPTIONS = [
+  { value: '', label: 'Todos os status' },
+  { value: 'COMPLETED', label: 'Concluído' },
+  { value: 'ACTIVE', label: 'Ativo' },
+  { value: 'SCHEDULED', label: 'Agendado' },
+  { value: 'CANCELLED', label: 'Cancelado' },
+  { value: 'CANCELLED_BY_STUDENT', label: 'Canc. pelo aluno' },
+  { value: 'CANCELLED_BY_PERSONAL', label: 'Canc. pelo personal' },
+  { value: 'PENDING', label: 'Pendente' },
+]
+
 export function DataTable({ purchases, isLoading }: Props) {
+  const [search, setSearch] = useState('')
+  const [statusFilter, setStatusFilter] = useState('')
+
+  const filtered = useMemo(() => {
+    const q = search.toLowerCase().trim()
+    return purchases.filter(p => {
+      if (statusFilter && p.status !== statusFilter) return false
+      if (!q) return true
+      return (
+        (p.studentName ?? '').toLowerCase().includes(q) ||
+        (p.personalName ?? '').toLowerCase().includes(q) ||
+        (p.planName ?? '').toLowerCase().includes(q) ||
+        (p.paymentMethod ?? '').toLowerCase().includes(q)
+      )
+    })
+  }, [purchases, search, statusFilter])
+
   if (isLoading) return <TableSkeleton />
 
   return (
@@ -18,21 +48,52 @@ export function DataTable({ purchases, isLoading }: Props) {
       className="rounded-card overflow-hidden"
       style={{ backgroundColor: 'var(--bg-card)', border: '1px solid var(--border-color)' }}
     >
-      <div className="px-8 py-5 flex items-center justify-between" style={{ borderBottom: '1px solid var(--border-color)' }}>
+      <div className="px-8 py-5 flex flex-col sm:flex-row sm:items-center gap-3 justify-between" style={{ borderBottom: '1px solid var(--border-color)' }}>
         <div>
           <h3 className="font-grotesk font-700 text-base" style={{ color: 'var(--text-primary)' }}>
             Compras Recentes
           </h3>
           <p className="text-xs font-sans mt-0.5" style={{ color: 'var(--text-muted)' }}>
-            Top 100 do período · mostrando {purchases.length}
+            Top 100 do período · mostrando {filtered.length} de {purchases.length}
           </p>
+        </div>
+        <div className="flex items-center gap-2 flex-shrink-0">
+          <div className="relative">
+            <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" style={{ color: 'var(--text-muted)' }} />
+            <input
+              type="text"
+              placeholder="Buscar..."
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+              className="pl-8 pr-3 py-1.5 text-xs font-sans rounded-lg outline-none w-44"
+              style={{
+                backgroundColor: 'var(--bg-page)',
+                border: '1px solid var(--border-color)',
+                color: 'var(--text-primary)',
+              }}
+            />
+          </div>
+          <select
+            value={statusFilter}
+            onChange={e => setStatusFilter(e.target.value)}
+            className="px-3 py-1.5 text-xs font-sans rounded-lg outline-none"
+            style={{
+              backgroundColor: 'var(--bg-page)',
+              border: '1px solid var(--border-color)',
+              color: 'var(--text-secondary)',
+            }}
+          >
+            {STATUS_OPTIONS.map(o => (
+              <option key={o.value} value={o.value}>{o.label}</option>
+            ))}
+          </select>
         </div>
       </div>
 
-      {purchases.length === 0 ? (
+      {filtered.length === 0 ? (
         <div className="px-8 py-12 text-center">
           <p className="text-sm font-sans" style={{ color: 'var(--text-muted)' }}>
-            Nenhuma compra no período selecionado.
+            Nenhuma compra encontrada.
           </p>
         </div>
       ) : (
@@ -52,7 +113,7 @@ export function DataTable({ purchases, isLoading }: Props) {
               </tr>
             </thead>
             <tbody role="rowgroup">
-              {purchases.map((p) => (
+              {filtered.map((p) => (
                 <tr
                   key={p.id}
                   role="row"
