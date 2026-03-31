@@ -9,6 +9,17 @@ export interface Purchase {
   planName: string | null
 }
 
+export interface TopPersonal {
+  personalId: string
+  personalName: string
+  completedSales: number    // COMPLETED
+  scheduledSales: number    // SCHEDULED
+  totalSales: number        // completed + scheduled
+  cancelledSales: number
+  grossRevenue: number      // soma dos totalAmount das vendas concluídas
+  muvxRevenue: number       // (grossRevenue * 0.02) + (completedSales * 3.99)
+}
+
 export interface MetricsResponse {
   fetchedAt: string
 
@@ -30,16 +41,27 @@ export interface MetricsResponse {
   crefVerified: number
   crefPending: number
 
-  // Financeiro (período atual = mês corrente)
-  revenueInPeriod: number
-  purchasesTotal: number
+  // Financeiro
+  revenueInPeriod: number       // soma das vendas concluídas (COMPLETED)
+  muvxRevenue: number           // faturamento MUVX = (revenueInPeriod * 0.02) + (completedCount * 3.99)
+  purchasesTotal: number        // total geral de compras (paginação)
+  completedSales: number        // vendas COMPLETED
+  scheduledSales: number        // vendas SCHEDULED (aguardando data de pagamento)
+  cancelledSales: number        // vendas CANCELLED + CANCELLED_BY_STUDENT + CANCELLED_BY_PERSONAL
   purchasesByStatus: Record<string, number>
   recentPurchases: Purchase[]
 
-  // Derivados
-  conversionRate: number  // activeUsers / totalStudents * 100
+  // Engajamento de personais
+  personalsWithProduct: number  // personais que criaram ao menos 1 produto
+  personalsWithSale: number     // personais que realizaram ao menos 1 venda
 
-  // Erros parciais (endpoints que falharam)
+  // Top personais
+  topPersonals: TopPersonal[]
+
+  // Conversão: personais cadastrados vs personais que venderam
+  conversionRate: number        // personalsWithSale / totalPersonals * 100
+
+  // Erros parciais
   errors: string[]
 }
 

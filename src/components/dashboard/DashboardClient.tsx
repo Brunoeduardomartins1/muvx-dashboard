@@ -1,6 +1,6 @@
 'use client'
 
-import { Users, UserCheck, DollarSign } from 'lucide-react'
+import { Users, UserCheck, DollarSign, TrendingUp, XCircle, Clock, Package, ShoppingCart, Percent } from 'lucide-react'
 import { useAutoRefresh } from '@/hooks/useAutoRefresh'
 import { Header } from './Header'
 import { StatCard } from './StatCard'
@@ -9,6 +9,7 @@ import { ConversionRing } from './ConversionRing'
 import { GoalGauge } from './GoalGauge'
 import { PipelineBar } from './PipelineBar'
 import { DataTable } from './DataTable'
+import { TopPersonais } from './TopPersonais'
 import { StatCardSkeleton } from '@/components/ui/Skeleton'
 
 const REVENUE_GOAL = Number(process.env.NEXT_PUBLIC_MUVX_GOAL ?? 50000)
@@ -49,14 +50,10 @@ export function DashboardClient() {
           </div>
         )}
 
-        {/* Row 1 — KPIs */}
-        <section className="grid grid-cols-1 md:grid-cols-3 gap-6" aria-label="KPIs principais">
+        {/* Row 1 — Usuários e Alunos */}
+        <section className="grid grid-cols-1 md:grid-cols-3 gap-6" aria-label="Usuários">
           {showSkeletons ? (
-            <>
-              <StatCardSkeleton dark />
-              <StatCardSkeleton dark />
-              <StatCardSkeleton dark />
-            </>
+            <><StatCardSkeleton dark /><StatCardSkeleton dark /><StatCardSkeleton dark /></>
           ) : (
             <>
               <StatCard
@@ -65,29 +62,95 @@ export function DashboardClient() {
                 value={data?.totalStudents ?? 0}
                 delta={data?.studentsGrowthLastMonth}
                 icon={<Users size={16} />}
-                sublabel={`${data?.totalPersonals ?? 0} personais cadastrados`}
               />
               <StatCard
                 dark
-                label="Usuários Ativos"
-                value={data?.activeUsers ?? 0}
-                delta={data?.usersGrowthLastMonth}
+                label="Total de Personais"
+                value={data?.totalPersonals ?? 0}
+                delta={data?.personalsGrowthLastMonth}
                 icon={<UserCheck size={16} />}
-                sublabel={`${data?.inactiveUsers ?? 0} inativos`}
+                sublabel={`${data?.crefPending ?? 0} CREF pendentes`}
               />
               <StatCard
                 dark
-                label="Receita no Período"
-                value={data?.revenueInPeriod ?? 0}
-                format="currency"
-                icon={<DollarSign size={16} />}
-                sublabel={`${data?.purchasesTotal ?? 0} compras no mês`}
+                label="Total Geral de Usuários"
+                value={data?.totalUsers ?? 0}
+                delta={data?.usersGrowthLastMonth}
+                icon={<Users size={16} />}
+                sublabel={`${data?.activeUsers ?? 0} ativos · ${data?.inactiveUsers ?? 0} inativos`}
               />
             </>
           )}
         </section>
 
-        {/* Row 2 — Gráficos */}
+        {/* Row 2 — Engajamento de Personais */}
+        <section className="grid grid-cols-1 md:grid-cols-3 gap-6" aria-label="Engajamento de personais">
+          {showSkeletons ? (
+            <><StatCardSkeleton /><StatCardSkeleton /><StatCardSkeleton /></>
+          ) : (
+            <>
+              <StatCard
+                label="Personais com Produto"
+                value={data?.personalsWithProduct ?? 0}
+                icon={<Package size={16} />}
+                sublabel="cadastraram ao menos 1 produto"
+              />
+              <StatCard
+                label="Personais com Venda"
+                value={data?.personalsWithSale ?? 0}
+                icon={<ShoppingCart size={16} />}
+                sublabel="realizaram ao menos 1 venda"
+              />
+              <StatCard
+                label="Conversão de Personais"
+                value={data?.conversionRate ?? 0}
+                format="number"
+                icon={<Percent size={16} />}
+                sublabel={`${data?.personalsWithSale ?? 0} de ${data?.totalPersonals ?? 0} personais venderam`}
+              />
+            </>
+          )}
+        </section>
+
+        {/* Row 3 — Vendas e Financeiro */}
+        <section className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6" aria-label="Vendas e financeiro">
+          {showSkeletons ? (
+            <><StatCardSkeleton dark /><StatCardSkeleton dark /><StatCardSkeleton dark /><StatCardSkeleton dark /></>
+          ) : (
+            <>
+              <StatCard
+                dark
+                label="Vendas Realizadas"
+                value={data?.completedSales ?? 0}
+                icon={<TrendingUp size={16} />}
+                sublabel={`${data?.purchasesTotal ?? 0} total de compras`}
+              />
+              <StatCard
+                dark
+                label="Ag. Data Pagamento"
+                value={data?.scheduledSales ?? 0}
+                icon={<Clock size={16} />}
+                sublabel="aguardando vencimento"
+              />
+              <StatCard
+                dark
+                label="Vendas Canceladas"
+                value={data?.cancelledSales ?? 0}
+                icon={<XCircle size={16} />}
+              />
+              <StatCard
+                dark
+                label="Vendas Transacionadas"
+                value={data?.revenueInPeriod ?? 0}
+                format="currency"
+                icon={<DollarSign size={16} />}
+                sublabel={`Fat. MUVX: R$ ${((data?.muvxRevenue ?? 0)).toFixed(2).replace('.', ',')}`}
+              />
+            </>
+          )}
+        </section>
+
+        {/* Row 4 — Gráficos */}
         <section className="grid grid-cols-1 lg:grid-cols-3 gap-6" aria-label="Análises">
           <BarChartComponent
             purchasesByStatus={data?.purchasesByStatus ?? {}}
@@ -104,7 +167,7 @@ export function DashboardClient() {
           />
         </section>
 
-        {/* Row 3 — Pipeline + Tabela */}
+        {/* Row 5 — Pipeline + Tabela */}
         <section className="grid grid-cols-1 lg:grid-cols-2 gap-6" aria-label="Pipeline e transações">
           <PipelineBar
             purchasesByStatus={data?.purchasesByStatus ?? {}}
@@ -114,6 +177,14 @@ export function DashboardClient() {
           />
           <DataTable
             purchases={data?.recentPurchases ?? []}
+            isLoading={showSkeletons}
+          />
+        </section>
+
+        {/* Row 6 — Top Personais */}
+        <section aria-label="Top personais">
+          <TopPersonais
+            topPersonals={data?.topPersonals ?? []}
             isLoading={showSkeletons}
           />
         </section>

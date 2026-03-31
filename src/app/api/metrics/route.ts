@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { getMuvxToken, muvxGet } from '@/lib/api'
-import type { MetricsResponse, Purchase } from '@/lib/types'
+import type { MetricsResponse, Purchase, TopPersonal } from '@/lib/types'
 
 export const dynamic = 'force-dynamic'
 
@@ -37,7 +37,8 @@ interface RawPurchase {
   recurrenceInterval?: string
   originalProduct?: { name?: string }
   student?: { name?: string; email?: string }
-  personal?: { name?: string; email?: string }
+  personal?: { id?: string; name?: string; email?: string }
+  paymentTransaction?: { status?: string }
 }
 
 interface AdminPurchasesResponse {
@@ -47,6 +48,26 @@ interface AdminPurchasesResponse {
   page?: number
   limit?: number
 }
+
+interface RawPersonal {
+  id?: string
+  user?: { fullName?: string; name?: string }
+  _count?: {
+    products?: number
+    salesReceived?: number
+  }
+}
+
+interface AdminPersonalsResponse {
+  data?: RawPersonal[]
+  meta?: { total?: number; totalPages?: number }
+}
+
+const CANCELLED_STATUSES = ['CANCELLED', 'CANCELLED_BY_STUDENT', 'CANCELLED_BY_PERSONAL']
+const COMPLETED_STATUS = 'COMPLETED'
+const SCHEDULED_STATUS = 'SCHEDULED'
+const MUVX_FEE_PCT = 0.02
+const MUVX_FEE_FIXED = 3.99
 
 export async function GET() {
   const errors: string[] = []
@@ -61,24 +82,28 @@ export async function GET() {
     )
   }
 
-  const [dashboardResult, statsResult, overviewResult, purchasesResult] =
+  const [dashboardResult, statsResult, overviewResult, purchasesResult, personalsResult] =
     await Promise.allSettled([
       muvxGet<AdminDashboard>('/admin/dashboard', token),
       muvxGet<AdminStats>('/admin/dashboard/stats', token),
       muvxGet<AdminOverview>('/admin/stats/overview', token),
       muvxGet<AdminPurchasesResponse>('/admin/purchases?limit=100&page=1', token),
+      muvxGet<AdminPersonalsResponse>('/admin/personals?limit=100&page=1', token),
     ])
 
   const dashboard = dashboardResult.status === 'fulfilled' ? dashboardResult.value : null
   const stats = statsResult.status === 'fulfilled' ? statsResult.value : null
   const overview = overviewResult.status === 'fulfilled' ? overviewResult.value : null
   const purchasesData = purchasesResult.status === 'fulfilled' ? purchasesResult.value : null
+  const personalsData = personalsResult.status === 'fulfilled' ? personalsResult.value : null
 
   if (!dashboard) errors.push('admin/dashboard indisponível')
   if (!stats) errors.push('admin/dashboard/stats indisponível')
   if (!overview) errors.push('admin/stats/overview indisponível')
   if (!purchasesData) errors.push('admin/purchases indisponível')
+  if (!personalsData) errors.push('admin/personals indisponível')
 
+  // --- Totais básicos ---
   const totalUsers = dashboard?.totals?.users ?? 0
   const totalStudents = dashboard?.totals?.students ?? 0
   const totalPersonals = dashboard?.totals?.personals ?? 0
@@ -93,21 +118,87 @@ export async function GET() {
   const crefVerified = stats?.cref?.verified ?? 0
   const crefPending = stats?.cref?.pending ?? 0
 
+  // --- Purchases ---
   const rawPurchases: RawPurchase[] = purchasesData?.data ?? []
   const purchasesTotal = purchasesData?.total ?? rawPurchases.length
 
   const purchasesByStatus: Record<string, number> = {}
-  let revenueInPeriod = 0
+  const personalSalesMap: Record<string, {
+    name: string
+    completed: number
+    scheduled: number
+    cancelled: number
+    revenue: number
+  }> = {}
 
   for (const p of rawPurchases) {
     const status = p.status ?? 'UNKNOWN'
     purchasesByStatus[status] = (purchasesByStatus[status] ?? 0) + 1
-    // Considera receita gerada pelas compras completadas e agendadas
-    if (['COMPLETED', 'SCHEDULED', 'PAYMENT_PENDING'].includes(status)) {
-      revenueInPeriod += Number(p.totalAmount ?? 0)
+
+    // Agrega por personal
+    const pid = p.personal?.id
+    if (pid) {
+      if (!personalSalesMap[pid]) {
+        personalSalesMap[pid] = {
+          name: p.personal?.name ?? 'Desconhecido',
+          completed: 0,
+          scheduled: 0,
+          cancelled: 0,
+          revenue: 0,
+        }
+      }
+      const entry = personalSalesMap[pid]
+      if (status === COMPLETED_STATUS) {
+        entry.completed++
+        entry.revenue += Number(p.totalAmount ?? 0)
+      } else if (status === SCHEDULED_STATUS) {
+        entry.scheduled++
+      } else if (CANCELLED_STATUSES.includes(status)) {
+        entry.cancelled++
+      }
     }
   }
 
+  // Contagens de status
+  const completedSales = purchasesByStatus[COMPLETED_STATUS] ?? 0
+  const scheduledSales = purchasesByStatus[SCHEDULED_STATUS] ?? 0
+  const cancelledSales = CANCELLED_STATUSES.reduce((sum, s) => sum + (purchasesByStatus[s] ?? 0), 0)
+
+  // Receita = soma das vendas COMPLETED
+  const revenueInPeriod = rawPurchases
+    .filter(p => p.status === COMPLETED_STATUS)
+    .reduce((sum, p) => sum + Number(p.totalAmount ?? 0), 0)
+
+  // Faturamento MUVX = 2% sobre cada venda concluída + R$3,99 por venda concluída
+  const muvxRevenue = revenueInPeriod * MUVX_FEE_PCT + completedSales * MUVX_FEE_FIXED
+
+  // --- Personais com produto e com venda ---
+  const rawPersonals: RawPersonal[] = personalsData?.data ?? []
+  const personalsWithProduct = rawPersonals.filter(p => (p._count?.products ?? 0) > 0).length
+  const personalsWithSale = rawPersonals.filter(p => (p._count?.salesReceived ?? 0) > 0).length
+
+  // --- Top Personais (baseado nas purchases carregadas) ---
+  const topPersonals: TopPersonal[] = Object.entries(personalSalesMap)
+    .map(([personalId, s]) => {
+      const muvxRev = s.revenue * MUVX_FEE_PCT + s.completed * MUVX_FEE_FIXED
+      return {
+        personalId,
+        personalName: s.name,
+        completedSales: s.completed,
+        scheduledSales: s.scheduled,
+        totalSales: s.completed + s.scheduled,
+        cancelledSales: s.cancelled,
+        grossRevenue: s.revenue,
+        muvxRevenue: muvxRev,
+      }
+    })
+    .sort((a, b) => b.grossRevenue - a.grossRevenue || b.totalSales - a.totalSales)
+    .slice(0, 10)
+
+  // --- Conversão: personais que venderam / total de personais cadastrados ---
+  const conversionRate = totalPersonals > 0 ? (personalsWithSale / totalPersonals) * 100 : 0
+
+  // --- Recent Purchases (top 10) ---
   const recentPurchases: Purchase[] = rawPurchases.slice(0, 10).map((p) => ({
     id: p.id ?? '',
     studentName: p.student?.name ?? null,
@@ -118,11 +209,6 @@ export async function GET() {
     paymentMethod: p.paymentMethod ?? p.billingType ?? null,
     planName: p.originalProduct?.name ?? null,
   }))
-
-  // Compras com pagamento confirmado / total de compras no período
-  const paidStatuses = ['COMPLETED', 'SCHEDULED']
-  const paidCount = paidStatuses.reduce((sum, s) => sum + (purchasesByStatus[s] ?? 0), 0)
-  const conversionRate = purchasesTotal > 0 ? (paidCount / purchasesTotal) * 100 : 0
 
   const response: MetricsResponse = {
     fetchedAt: new Date().toISOString(),
@@ -137,9 +223,16 @@ export async function GET() {
     crefVerified,
     crefPending,
     revenueInPeriod,
+    muvxRevenue,
     purchasesTotal,
+    completedSales,
+    scheduledSales,
+    cancelledSales,
     purchasesByStatus,
     recentPurchases,
+    personalsWithProduct,
+    personalsWithSale,
+    topPersonals,
     conversionRate,
     errors,
   }
