@@ -5,6 +5,7 @@ import { X } from 'lucide-react'
 import type { Purchase, PersonalRow } from '@/lib/types'
 import { fmtBRL, fmtDate, fmtNum, PAYMENT_METHOD_LABELS } from '@/lib/utils'
 import { StatusBadge } from '@/components/ui/Badge'
+import { ExcelFilter } from '@/components/ui/ExcelFilter'
 
 interface PurchasesModal {
   kind: 'purchases'
@@ -22,57 +23,13 @@ interface PersonalsModal {
 
 type Props = (PurchasesModal | PersonalsModal) & { onClose: () => void }
 
-const STATUS_OPTIONS = [
-  { value: '', label: 'Todos' },
-  { value: 'COMPLETED', label: 'Concluído' },
-  { value: 'ACTIVE', label: 'Ativo' },
-  { value: 'SCHEDULED', label: 'Agendado' },
-  { value: 'CANCELLED', label: 'Cancelado' },
-  { value: 'CANCELLED_BY_STUDENT', label: 'Canc. aluno' },
-  { value: 'CANCELLED_BY_PERSONAL', label: 'Canc. personal' },
-  { value: 'PENDING', label: 'Pendente' },
-]
-
-const METHOD_OPTIONS = [
-  { value: '', label: 'Todos' },
-  { value: 'PIX', label: 'Pix' },
-  { value: 'CREDIT_CARD', label: 'Cartão' },
-  { value: 'BOLETO', label: 'Boleto' },
-  { value: 'DEBIT_CARD', label: 'Débito' },
-  { value: 'FREE', label: 'Gratuito' },
-]
-
-const colStyle = {
-  backgroundColor: 'var(--bg-page)',
-  border: '1px solid var(--border-color)',
-  color: 'var(--text-secondary)',
-} as const
-
-function ColInput({ value, onChange, placeholder }: { value: string; onChange: (v: string) => void; placeholder: string }) {
-  return (
-    <input
-      type="text"
-      value={value}
-      onChange={e => onChange(e.target.value)}
-      placeholder={placeholder}
-      className="mt-1 w-full px-2 py-1 text-xs font-sans rounded outline-none"
-      style={colStyle}
-    />
-  )
+const STATUS_LABELS: Record<string, string> = {
+  COMPLETED: 'Concluído', ACTIVE: 'Ativo', SCHEDULED: 'Agendado',
+  CANCELLED: 'Cancelado', CANCELLED_BY_STUDENT: 'Canc. aluno',
+  CANCELLED_BY_PERSONAL: 'Canc. personal', PENDING: 'Pendente',
 }
 
-function ColSelect({ value, onChange, options }: { value: string; onChange: (v: string) => void; options: { value: string; label: string }[] }) {
-  return (
-    <select
-      value={value}
-      onChange={e => onChange(e.target.value)}
-      className="mt-1 w-full px-2 py-1 text-xs font-sans rounded outline-none"
-      style={colStyle}
-    >
-      {options.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
-    </select>
-  )
-}
+function unique<T>(arr: T[]): T[] { return Array.from(new Set(arr)) }
 
 export function DrillDownModal(props: Props) {
   const { title, subtitle, onClose } = props
@@ -146,55 +103,72 @@ export function DrillDownModal(props: Props) {
   )
 }
 
-interface PurchaseFilters { student: string; personal: string; plan: string; status: string; method: string }
+interface PF { student: Set<string>; personal: Set<string>; plan: Set<string>; amount: Set<string>; status: Set<string>; method: Set<string>; date: Set<string> }
+const PF0: PF = { student: new Set(), personal: new Set(), plan: new Set(), amount: new Set(), status: new Set(), method: new Set(), date: new Set() }
 
 function PurchasesTable({ items }: { items: Purchase[] }) {
-  const [f, setF] = useState<PurchaseFilters>({ student: '', personal: '', plan: '', status: '', method: '' })
-  const set = (key: keyof PurchaseFilters) => (v: string) => setF(prev => ({ ...prev, [key]: v }))
+  const [f, setF] = useState<PF>(PF0)
+  const set = (key: keyof PF) => (s: Set<string>) => setF(prev => ({ ...prev, [key]: s }))
+
+  const opts = useMemo(() => ({
+    student: unique(items.map(p => p.studentName ?? '—').filter(Boolean)).sort(),
+    personal: unique(items.map(p => p.personalName ?? '—').filter(Boolean)).sort(),
+    plan: unique(items.map(p => p.planName ?? '—').filter(Boolean)).sort(),
+    amount: unique(items.map(p => fmtBRL(p.amount))).sort(),
+    status: unique(items.map(p => p.status)).sort(),
+    method: unique(items.map(p => p.paymentMethod ?? '')).filter(Boolean).sort(),
+    date: unique(items.map(p => fmtDate(p.createdAt))).sort(),
+  }), [items])
 
   const filtered = useMemo(() => items.filter(p => {
-    if (f.student && !(p.studentName ?? '').toLowerCase().includes(f.student.toLowerCase())) return false
-    if (f.personal && !(p.personalName ?? '').toLowerCase().includes(f.personal.toLowerCase())) return false
-    if (f.plan && !(p.planName ?? '').toLowerCase().includes(f.plan.toLowerCase())) return false
-    if (f.status && p.status !== f.status) return false
-    if (f.method && p.paymentMethod !== f.method) return false
+    if (f.student.size && !f.student.has(p.studentName ?? '—')) return false
+    if (f.personal.size && !f.personal.has(p.personalName ?? '—')) return false
+    if (f.plan.size && !f.plan.has(p.planName ?? '—')) return false
+    if (f.amount.size && !f.amount.has(fmtBRL(p.amount))) return false
+    if (f.status.size && !f.status.has(p.status)) return false
+    if (f.method.size && !f.method.has(p.paymentMethod ?? '')) return false
+    if (f.date.size && !f.date.has(fmtDate(p.createdAt))) return false
     return true
   }), [items, f])
 
   return (
     <table className="w-full">
-      <thead className="sticky top-0" style={{ backgroundColor: 'var(--bg-card)' }}>
+      <thead className="sticky top-0" style={{ backgroundColor: 'var(--bg-card)', zIndex: 10 }}>
         <tr style={{ borderBottom: '1px solid var(--border-color)' }}>
-          <th className="px-4 py-2 text-left align-top" style={{ color: 'var(--text-muted)', minWidth: 140 }}>
-            <span className="text-xs font-sans font-600 uppercase tracking-widest">Aluno</span>
-            <ColInput value={f.student} onChange={set('student')} placeholder="Filtrar..." />
+          <th className="px-4 py-3 text-left" style={{ minWidth: 150 }}>
+            <ExcelFilter label="Aluno" values={opts.student} selected={f.student} onChangeSelected={set('student')} />
           </th>
-          <th className="px-4 py-2 text-left align-top" style={{ color: 'var(--text-muted)', minWidth: 140 }}>
-            <span className="text-xs font-sans font-600 uppercase tracking-widest">Personal</span>
-            <ColInput value={f.personal} onChange={set('personal')} placeholder="Filtrar..." />
+          <th className="px-4 py-3 text-left" style={{ minWidth: 150 }}>
+            <ExcelFilter label="Personal" values={opts.personal} selected={f.personal} onChangeSelected={set('personal')} />
           </th>
-          <th className="px-4 py-2 text-left align-top" style={{ color: 'var(--text-muted)', minWidth: 130 }}>
-            <span className="text-xs font-sans font-600 uppercase tracking-widest">Plano</span>
-            <ColInput value={f.plan} onChange={set('plan')} placeholder="Filtrar..." />
+          <th className="px-4 py-3 text-left" style={{ minWidth: 130 }}>
+            <ExcelFilter label="Plano" values={opts.plan} selected={f.plan} onChangeSelected={set('plan')} />
           </th>
-          <th className="px-4 py-2 text-left align-top" style={{ color: 'var(--text-muted)', minWidth: 80 }}>
-            <span className="text-xs font-sans font-600 uppercase tracking-widest">Valor</span>
-            <div className="mt-1 h-[26px]" />
+          <th className="px-4 py-3 text-left" style={{ minWidth: 100 }}>
+            <ExcelFilter label="Valor" values={opts.amount} selected={f.amount} onChangeSelected={set('amount')} />
           </th>
-          <th className="px-4 py-2 text-left align-top" style={{ color: 'var(--text-muted)', minWidth: 120 }}>
-            <span className="text-xs font-sans font-600 uppercase tracking-widest">Status</span>
-            <ColSelect value={f.status} onChange={set('status')} options={STATUS_OPTIONS} />
+          <th className="px-4 py-3 text-left" style={{ minWidth: 120 }}>
+            <ExcelFilter
+              label="Status"
+              values={opts.status.map(s => STATUS_LABELS[s] ?? s)}
+              rawValues={opts.status}
+              selected={f.status}
+              onChangeSelected={set('status')}
+            />
           </th>
-          <th className="px-4 py-2 text-left align-top" style={{ color: 'var(--text-muted)', minWidth: 110 }}>
-            <span className="text-xs font-sans font-600 uppercase tracking-widest">Método</span>
-            <ColSelect value={f.method} onChange={set('method')} options={METHOD_OPTIONS} />
+          <th className="px-4 py-3 text-left" style={{ minWidth: 110 }}>
+            <ExcelFilter
+              label="Método"
+              values={opts.method.map(m => PAYMENT_METHOD_LABELS[m] ?? m)}
+              rawValues={opts.method}
+              selected={f.method}
+              onChangeSelected={set('method')}
+            />
           </th>
-          <th className="px-4 py-2 text-left align-top" style={{ color: 'var(--text-muted)', minWidth: 90 }}>
-            <span className="text-xs font-sans font-600 uppercase tracking-widest">Data</span>
-            <div className="mt-1 h-[26px]" />
+          <th className="px-4 py-3 text-left" style={{ minWidth: 100 }}>
+            <ExcelFilter label="Data" values={opts.date} selected={f.date} onChangeSelected={set('date')} />
           </th>
         </tr>
-        {/* row count */}
         <tr style={{ borderBottom: '1px solid var(--border-color)' }}>
           <td colSpan={7} className="px-4 py-1.5 text-xs font-sans" style={{ color: 'var(--text-muted)', backgroundColor: 'var(--bg-page)' }}>
             {filtered.length === items.length ? `${items.length} registros` : `${filtered.length} de ${items.length}`}
@@ -216,10 +190,10 @@ function PurchasesTable({ items }: { items: Purchase[] }) {
             onMouseEnter={e => (e.currentTarget.style.backgroundColor = 'var(--bg-card-dark)')}
             onMouseLeave={e => (e.currentTarget.style.backgroundColor = 'transparent')}
           >
-            <td className="px-4 py-3.5 text-sm font-sans font-500 max-w-[140px] truncate" style={{ color: 'var(--text-primary)' }} title={p.studentName ?? undefined}>
+            <td className="px-4 py-3.5 text-sm font-sans font-500 max-w-[150px] truncate" style={{ color: 'var(--text-primary)' }} title={p.studentName ?? undefined}>
               {p.studentName ?? '—'}
             </td>
-            <td className="px-4 py-3.5 text-sm font-sans max-w-[140px] truncate" style={{ color: 'var(--text-secondary)' }} title={p.personalName ?? undefined}>
+            <td className="px-4 py-3.5 text-sm font-sans max-w-[150px] truncate" style={{ color: 'var(--text-secondary)' }} title={p.personalName ?? undefined}>
               {p.personalName ?? '—'}
             </td>
             <td className="px-4 py-3.5 text-sm font-sans max-w-[130px] truncate" style={{ color: 'var(--text-secondary)' }} title={p.planName ?? undefined}>
@@ -244,41 +218,46 @@ function PurchasesTable({ items }: { items: Purchase[] }) {
   )
 }
 
-interface PersonalFilters { name: string; email: string }
+interface GF { name: Set<string>; email: Set<string>; products: Set<string>; sales: Set<string> }
+const GF0: GF = { name: new Set(), email: new Set(), products: new Set(), sales: new Set() }
 
 function PersonalsTable({ items }: { items: PersonalRow[] }) {
-  const [f, setF] = useState<PersonalFilters>({ name: '', email: '' })
-  const set = (key: keyof PersonalFilters) => (v: string) => setF(prev => ({ ...prev, [key]: v }))
+  const [f, setF] = useState<GF>(GF0)
+  const set = (key: keyof GF) => (s: Set<string>) => setF(prev => ({ ...prev, [key]: s }))
+
+  const opts = useMemo(() => ({
+    name: unique(items.map(p => p.personalName)).sort(),
+    email: unique(items.map(p => p.email ?? '—')).sort(),
+    products: unique(items.map(p => String(p.productsCount))).sort((a, b) => Number(b) - Number(a)),
+    sales: unique(items.map(p => String(p.salesCount))).sort((a, b) => Number(b) - Number(a)),
+  }), [items])
 
   const filtered = useMemo(() => items.filter(p => {
-    if (f.name && !p.personalName.toLowerCase().includes(f.name.toLowerCase())) return false
-    if (f.email && !(p.email ?? '').toLowerCase().includes(f.email.toLowerCase())) return false
+    if (f.name.size && !f.name.has(p.personalName)) return false
+    if (f.email.size && !f.email.has(p.email ?? '—')) return false
+    if (f.products.size && !f.products.has(String(p.productsCount))) return false
+    if (f.sales.size && !f.sales.has(String(p.salesCount))) return false
     return true
   }), [items, f])
 
   return (
     <table className="w-full">
-      <thead className="sticky top-0" style={{ backgroundColor: 'var(--bg-card)' }}>
+      <thead className="sticky top-0" style={{ backgroundColor: 'var(--bg-card)', zIndex: 10 }}>
         <tr style={{ borderBottom: '1px solid var(--border-color)' }}>
-          <th className="px-4 py-2 text-left align-top" style={{ color: 'var(--text-muted)', minWidth: 40 }}>
+          <th className="px-4 py-3 text-left" style={{ color: 'var(--text-muted)', minWidth: 40 }}>
             <span className="text-xs font-sans font-600 uppercase tracking-widest">#</span>
-            <div className="mt-1 h-[26px]" />
           </th>
-          <th className="px-4 py-2 text-left align-top" style={{ color: 'var(--text-muted)', minWidth: 180 }}>
-            <span className="text-xs font-sans font-600 uppercase tracking-widest">Personal</span>
-            <ColInput value={f.name} onChange={set('name')} placeholder="Filtrar..." />
+          <th className="px-4 py-3 text-left" style={{ minWidth: 180 }}>
+            <ExcelFilter label="Personal" values={opts.name} selected={f.name} onChangeSelected={set('name')} />
           </th>
-          <th className="px-4 py-2 text-left align-top" style={{ color: 'var(--text-muted)', minWidth: 200 }}>
-            <span className="text-xs font-sans font-600 uppercase tracking-widest">E-mail</span>
-            <ColInput value={f.email} onChange={set('email')} placeholder="Filtrar..." />
+          <th className="px-4 py-3 text-left" style={{ minWidth: 200 }}>
+            <ExcelFilter label="E-mail" values={opts.email} selected={f.email} onChangeSelected={set('email')} />
           </th>
-          <th className="px-4 py-2 text-left align-top" style={{ color: 'var(--text-muted)', minWidth: 90 }}>
-            <span className="text-xs font-sans font-600 uppercase tracking-widest">Produtos</span>
-            <div className="mt-1 h-[26px]" />
+          <th className="px-4 py-3 text-left" style={{ minWidth: 100 }}>
+            <ExcelFilter label="Produtos" values={opts.products} selected={f.products} onChangeSelected={set('products')} />
           </th>
-          <th className="px-4 py-2 text-left align-top" style={{ color: 'var(--text-muted)', minWidth: 130 }}>
-            <span className="text-xs font-sans font-600 uppercase tracking-widest">Vendas</span>
-            <div className="mt-1 h-[26px]" />
+          <th className="px-4 py-3 text-left" style={{ minWidth: 100 }}>
+            <ExcelFilter label="Vendas" values={opts.sales} selected={f.sales} onChangeSelected={set('sales')} />
           </th>
         </tr>
         <tr style={{ borderBottom: '1px solid var(--border-color)' }}>
