@@ -2,7 +2,7 @@
 
 import { useState, useCallback } from 'react'
 
-export type PeriodPreset = 'today' | '7d' | 'mtd' | 'last_month' | '90d' | 'ytd' | 'custom'
+export type PeriodPreset = 'today' | '7d' | '15d' | 'mtd' | 'ytd' | 'custom'
 
 export interface Period {
   preset: PeriodPreset
@@ -28,19 +28,14 @@ function buildPeriod(preset: PeriodPreset, customFrom?: string, customTo?: strin
       from.setDate(from.getDate() - 6)
       return { preset, from: toISO(from), to: today, label: 'Últimos 7 dias' }
     }
+    case '15d': {
+      const from = new Date(now)
+      from.setDate(from.getDate() - 14)
+      return { preset, from: toISO(from), to: today, label: 'Últimos 15 dias' }
+    }
     case 'mtd': {
       const from = new Date(now.getFullYear(), now.getMonth(), 1)
       return { preset, from: toISO(from), to: today, label: 'Este mês' }
-    }
-    case 'last_month': {
-      const firstOfLastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1)
-      const lastOfLastMonth = new Date(now.getFullYear(), now.getMonth(), 0)
-      return { preset, from: toISO(firstOfLastMonth), to: toISO(lastOfLastMonth), label: 'Mês passado' }
-    }
-    case '90d': {
-      const from = new Date(now)
-      from.setDate(from.getDate() - 89)
-      return { preset, from: toISO(from), to: today, label: 'Últimos 90 dias' }
     }
     case 'ytd': {
       const from = new Date(now.getFullYear(), 0, 1)
@@ -55,12 +50,11 @@ function buildPeriod(preset: PeriodPreset, customFrom?: string, customTo?: strin
 }
 
 export const PERIOD_PRESETS: { value: PeriodPreset; label: string }[] = [
-  { value: 'today',      label: 'Hoje' },
-  { value: '7d',         label: '7 dias' },
-  { value: 'mtd',        label: 'Este mês' },
-  { value: 'last_month', label: 'Mês passado' },
-  { value: '90d',        label: '90 dias' },
-  { value: 'ytd',        label: 'Este ano' },
+  { value: 'today', label: 'Hoje' },
+  { value: '7d',    label: '7 dias' },
+  { value: '15d',   label: '15 dias' },
+  { value: 'mtd',   label: 'Este mês' },
+  { value: 'ytd',   label: 'Este ano' },
 ]
 
 export function usePeriod() {
