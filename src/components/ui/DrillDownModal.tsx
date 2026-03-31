@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState, useMemo } from 'react'
-import { X, Search } from 'lucide-react'
+import { X } from 'lucide-react'
 import type { Purchase, PersonalRow } from '@/lib/types'
 import { fmtBRL, fmtDate, fmtNum, PAYMENT_METHOD_LABELS } from '@/lib/utils'
 import { StatusBadge } from '@/components/ui/Badge'
@@ -23,26 +23,59 @@ interface PersonalsModal {
 type Props = (PurchasesModal | PersonalsModal) & { onClose: () => void }
 
 const STATUS_OPTIONS = [
-  { value: '', label: 'Todos os status' },
+  { value: '', label: 'Todos' },
   { value: 'COMPLETED', label: 'Concluído' },
   { value: 'ACTIVE', label: 'Ativo' },
   { value: 'SCHEDULED', label: 'Agendado' },
   { value: 'CANCELLED', label: 'Cancelado' },
-  { value: 'CANCELLED_BY_STUDENT', label: 'Canc. pelo aluno' },
-  { value: 'CANCELLED_BY_PERSONAL', label: 'Canc. pelo personal' },
+  { value: 'CANCELLED_BY_STUDENT', label: 'Canc. aluno' },
+  { value: 'CANCELLED_BY_PERSONAL', label: 'Canc. personal' },
   { value: 'PENDING', label: 'Pendente' },
 ]
 
-const inputStyle = {
+const METHOD_OPTIONS = [
+  { value: '', label: 'Todos' },
+  { value: 'PIX', label: 'Pix' },
+  { value: 'CREDIT_CARD', label: 'Cartão' },
+  { value: 'BOLETO', label: 'Boleto' },
+  { value: 'DEBIT_CARD', label: 'Débito' },
+  { value: 'FREE', label: 'Gratuito' },
+]
+
+const colStyle = {
   backgroundColor: 'var(--bg-page)',
   border: '1px solid var(--border-color)',
-  color: 'var(--text-primary)',
+  color: 'var(--text-secondary)',
 } as const
+
+function ColInput({ value, onChange, placeholder }: { value: string; onChange: (v: string) => void; placeholder: string }) {
+  return (
+    <input
+      type="text"
+      value={value}
+      onChange={e => onChange(e.target.value)}
+      placeholder={placeholder}
+      className="mt-1 w-full px-2 py-1 text-xs font-sans rounded outline-none"
+      style={colStyle}
+    />
+  )
+}
+
+function ColSelect({ value, onChange, options }: { value: string; onChange: (v: string) => void; options: { value: string; label: string }[] }) {
+  return (
+    <select
+      value={value}
+      onChange={e => onChange(e.target.value)}
+      className="mt-1 w-full px-2 py-1 text-xs font-sans rounded outline-none"
+      style={colStyle}
+    >
+      {options.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+    </select>
+  )
+}
 
 export function DrillDownModal(props: Props) {
   const { title, subtitle, onClose } = props
-  const [search, setSearch] = useState('')
-  const [statusFilter, setStatusFilter] = useState('')
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose() }
@@ -55,33 +88,6 @@ export function DrillDownModal(props: Props) {
     return () => { document.body.style.overflow = '' }
   }, [])
 
-  const filteredItems = useMemo(() => {
-    const q = search.toLowerCase().trim()
-    if (props.kind === 'purchases') {
-      return props.items.filter((p: Purchase) => {
-        if (statusFilter && p.status !== statusFilter) return false
-        if (!q) return true
-        return (
-          (p.studentName ?? '').toLowerCase().includes(q) ||
-          (p.personalName ?? '').toLowerCase().includes(q) ||
-          (p.planName ?? '').toLowerCase().includes(q) ||
-          (p.paymentMethod ?? '').toLowerCase().includes(q)
-        )
-      })
-    } else {
-      return props.items.filter((p: PersonalRow) => {
-        if (!q) return true
-        return (
-          p.personalName.toLowerCase().includes(q) ||
-          (p.email ?? '').toLowerCase().includes(q)
-        )
-      })
-    }
-  }, [props, search, statusFilter])
-
-  const total = props.items.length
-  const count = filteredItems.length
-
   return (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center p-4"
@@ -89,7 +95,7 @@ export function DrillDownModal(props: Props) {
       onClick={e => { if (e.target === e.currentTarget) onClose() }}
     >
       <div
-        className="w-full max-w-3xl max-h-[80vh] flex flex-col rounded-card overflow-hidden"
+        className="w-full max-w-4xl max-h-[85vh] flex flex-col rounded-card overflow-hidden"
         style={{ backgroundColor: 'var(--bg-card)', border: '1px solid var(--border-color)' }}
       >
         {/* Header */}
@@ -109,51 +115,24 @@ export function DrillDownModal(props: Props) {
           </button>
         </div>
 
-        {/* Filter bar */}
-        <div className="px-8 py-3 flex items-center gap-2 flex-shrink-0" style={{ borderBottom: '1px solid var(--border-color)', backgroundColor: 'var(--bg-card)' }}>
-          <div className="relative flex-1 max-w-xs">
-            <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" style={{ color: 'var(--text-muted)' }} />
-            <input
-              type="text"
-              placeholder="Buscar..."
-              value={search}
-              onChange={e => setSearch(e.target.value)}
-              className="w-full pl-8 pr-3 py-1.5 text-xs font-sans rounded-lg outline-none"
-              style={inputStyle}
-            />
-          </div>
-          {props.kind === 'purchases' && (
-            <select
-              value={statusFilter}
-              onChange={e => setStatusFilter(e.target.value)}
-              className="px-3 py-1.5 text-xs font-sans rounded-lg outline-none"
-              style={inputStyle}
-            >
-              {STATUS_OPTIONS.map(o => (
-                <option key={o.value} value={o.value}>{o.label}</option>
-              ))}
-            </select>
-          )}
-          <span className="text-xs font-sans ml-auto flex-shrink-0" style={{ color: 'var(--text-muted)' }}>
-            {count === total ? `${total} registros` : `${count} de ${total}`}
-          </span>
-        </div>
-
         {/* Body */}
-        <div className="overflow-y-auto flex-1">
-          {count === 0 ? (
+        <div className="overflow-auto flex-1">
+          {props.items.length === 0 ? (
             <div className="px-8 py-12 text-center">
               <p className="text-sm font-sans" style={{ color: 'var(--text-muted)' }}>Nenhum registro encontrado.</p>
             </div>
           ) : props.kind === 'purchases' ? (
-            <PurchasesTable items={filteredItems as Purchase[]} />
+            <PurchasesTable items={props.items} />
           ) : (
-            <PersonalsTable items={filteredItems as PersonalRow[]} />
+            <PersonalsTable items={props.items} />
           )}
         </div>
 
         {/* Footer */}
-        <div className="px-8 py-4 flex-shrink-0 flex items-center justify-end" style={{ borderTop: '1px solid var(--border-color)' }}>
+        <div className="px-8 py-4 flex-shrink-0 flex items-center justify-between" style={{ borderTop: '1px solid var(--border-color)' }}>
+          <span className="text-xs font-sans" style={{ color: 'var(--text-muted)' }}>
+            {props.items.length} {props.items.length === 1 ? 'registro' : 'registros'}
+          </span>
           <button
             onClick={onClose}
             className="px-4 py-2 rounded-lg text-xs font-sans font-600 border transition-all duration-150"
@@ -167,20 +146,69 @@ export function DrillDownModal(props: Props) {
   )
 }
 
+interface PurchaseFilters { student: string; personal: string; plan: string; status: string; method: string }
+
 function PurchasesTable({ items }: { items: Purchase[] }) {
+  const [f, setF] = useState<PurchaseFilters>({ student: '', personal: '', plan: '', status: '', method: '' })
+  const set = (key: keyof PurchaseFilters) => (v: string) => setF(prev => ({ ...prev, [key]: v }))
+
+  const filtered = useMemo(() => items.filter(p => {
+    if (f.student && !(p.studentName ?? '').toLowerCase().includes(f.student.toLowerCase())) return false
+    if (f.personal && !(p.personalName ?? '').toLowerCase().includes(f.personal.toLowerCase())) return false
+    if (f.plan && !(p.planName ?? '').toLowerCase().includes(f.plan.toLowerCase())) return false
+    if (f.status && p.status !== f.status) return false
+    if (f.method && p.paymentMethod !== f.method) return false
+    return true
+  }), [items, f])
+
   return (
     <table className="w-full">
       <thead className="sticky top-0" style={{ backgroundColor: 'var(--bg-card)' }}>
         <tr style={{ borderBottom: '1px solid var(--border-color)' }}>
-          {['Aluno', 'Personal', 'Plano', 'Valor', 'Status', 'Método', 'Data'].map(col => (
-            <th key={col} className="px-6 py-3 text-left text-xs font-sans font-600 uppercase tracking-widest" style={{ color: 'var(--text-muted)' }}>
-              {col}
-            </th>
-          ))}
+          <th className="px-4 py-2 text-left align-top" style={{ color: 'var(--text-muted)', minWidth: 140 }}>
+            <span className="text-xs font-sans font-600 uppercase tracking-widest">Aluno</span>
+            <ColInput value={f.student} onChange={set('student')} placeholder="Filtrar..." />
+          </th>
+          <th className="px-4 py-2 text-left align-top" style={{ color: 'var(--text-muted)', minWidth: 140 }}>
+            <span className="text-xs font-sans font-600 uppercase tracking-widest">Personal</span>
+            <ColInput value={f.personal} onChange={set('personal')} placeholder="Filtrar..." />
+          </th>
+          <th className="px-4 py-2 text-left align-top" style={{ color: 'var(--text-muted)', minWidth: 130 }}>
+            <span className="text-xs font-sans font-600 uppercase tracking-widest">Plano</span>
+            <ColInput value={f.plan} onChange={set('plan')} placeholder="Filtrar..." />
+          </th>
+          <th className="px-4 py-2 text-left align-top" style={{ color: 'var(--text-muted)', minWidth: 80 }}>
+            <span className="text-xs font-sans font-600 uppercase tracking-widest">Valor</span>
+            <div className="mt-1 h-[26px]" />
+          </th>
+          <th className="px-4 py-2 text-left align-top" style={{ color: 'var(--text-muted)', minWidth: 120 }}>
+            <span className="text-xs font-sans font-600 uppercase tracking-widest">Status</span>
+            <ColSelect value={f.status} onChange={set('status')} options={STATUS_OPTIONS} />
+          </th>
+          <th className="px-4 py-2 text-left align-top" style={{ color: 'var(--text-muted)', minWidth: 110 }}>
+            <span className="text-xs font-sans font-600 uppercase tracking-widest">Método</span>
+            <ColSelect value={f.method} onChange={set('method')} options={METHOD_OPTIONS} />
+          </th>
+          <th className="px-4 py-2 text-left align-top" style={{ color: 'var(--text-muted)', minWidth: 90 }}>
+            <span className="text-xs font-sans font-600 uppercase tracking-widest">Data</span>
+            <div className="mt-1 h-[26px]" />
+          </th>
+        </tr>
+        {/* row count */}
+        <tr style={{ borderBottom: '1px solid var(--border-color)' }}>
+          <td colSpan={7} className="px-4 py-1.5 text-xs font-sans" style={{ color: 'var(--text-muted)', backgroundColor: 'var(--bg-page)' }}>
+            {filtered.length === items.length ? `${items.length} registros` : `${filtered.length} de ${items.length}`}
+          </td>
         </tr>
       </thead>
       <tbody>
-        {items.map(p => (
+        {filtered.length === 0 ? (
+          <tr>
+            <td colSpan={7} className="px-6 py-10 text-center text-sm font-sans" style={{ color: 'var(--text-muted)' }}>
+              Nenhum resultado para os filtros aplicados.
+            </td>
+          </tr>
+        ) : filtered.map(p => (
           <tr
             key={p.id}
             className="transition-colors duration-150"
@@ -188,25 +216,25 @@ function PurchasesTable({ items }: { items: Purchase[] }) {
             onMouseEnter={e => (e.currentTarget.style.backgroundColor = 'var(--bg-card-dark)')}
             onMouseLeave={e => (e.currentTarget.style.backgroundColor = 'transparent')}
           >
-            <td className="px-6 py-3.5 text-sm font-sans font-500 max-w-[130px] truncate" style={{ color: 'var(--text-primary)' }} title={p.studentName ?? undefined}>
+            <td className="px-4 py-3.5 text-sm font-sans font-500 max-w-[140px] truncate" style={{ color: 'var(--text-primary)' }} title={p.studentName ?? undefined}>
               {p.studentName ?? '—'}
             </td>
-            <td className="px-6 py-3.5 text-sm font-sans max-w-[130px] truncate" style={{ color: 'var(--text-secondary)' }} title={p.personalName ?? undefined}>
+            <td className="px-4 py-3.5 text-sm font-sans max-w-[140px] truncate" style={{ color: 'var(--text-secondary)' }} title={p.personalName ?? undefined}>
               {p.personalName ?? '—'}
             </td>
-            <td className="px-6 py-3.5 text-sm font-sans max-w-[130px] truncate" style={{ color: 'var(--text-secondary)' }} title={p.planName ?? undefined}>
+            <td className="px-4 py-3.5 text-sm font-sans max-w-[130px] truncate" style={{ color: 'var(--text-secondary)' }} title={p.planName ?? undefined}>
               {p.planName ?? '—'}
             </td>
-            <td className="px-6 py-3.5 text-sm font-grotesk font-600 whitespace-nowrap" style={{ color: 'var(--text-primary)' }}>
+            <td className="px-4 py-3.5 text-sm font-grotesk font-600 whitespace-nowrap" style={{ color: 'var(--text-primary)' }}>
               {fmtBRL(p.amount)}
             </td>
-            <td className="px-6 py-3.5">
+            <td className="px-4 py-3.5">
               <StatusBadge status={p.status} />
             </td>
-            <td className="px-6 py-3.5 text-sm font-sans" style={{ color: 'var(--text-secondary)' }}>
+            <td className="px-4 py-3.5 text-sm font-sans" style={{ color: 'var(--text-secondary)' }}>
               {p.paymentMethod ? (PAYMENT_METHOD_LABELS[p.paymentMethod] ?? p.paymentMethod) : '—'}
             </td>
-            <td className="px-6 py-3.5 text-sm font-sans whitespace-nowrap" style={{ color: 'var(--text-muted)' }}>
+            <td className="px-4 py-3.5 text-sm font-sans whitespace-nowrap" style={{ color: 'var(--text-muted)' }}>
               {fmtDate(p.createdAt)}
             </td>
           </tr>
@@ -216,20 +244,57 @@ function PurchasesTable({ items }: { items: Purchase[] }) {
   )
 }
 
+interface PersonalFilters { name: string; email: string }
+
 function PersonalsTable({ items }: { items: PersonalRow[] }) {
+  const [f, setF] = useState<PersonalFilters>({ name: '', email: '' })
+  const set = (key: keyof PersonalFilters) => (v: string) => setF(prev => ({ ...prev, [key]: v }))
+
+  const filtered = useMemo(() => items.filter(p => {
+    if (f.name && !p.personalName.toLowerCase().includes(f.name.toLowerCase())) return false
+    if (f.email && !(p.email ?? '').toLowerCase().includes(f.email.toLowerCase())) return false
+    return true
+  }), [items, f])
+
   return (
     <table className="w-full">
       <thead className="sticky top-0" style={{ backgroundColor: 'var(--bg-card)' }}>
         <tr style={{ borderBottom: '1px solid var(--border-color)' }}>
-          {['#', 'Personal', 'E-mail', 'Produtos', 'Vendas (histórico)'].map(col => (
-            <th key={col} className="px-6 py-3 text-left text-xs font-sans font-600 uppercase tracking-widest" style={{ color: 'var(--text-muted)' }}>
-              {col}
-            </th>
-          ))}
+          <th className="px-4 py-2 text-left align-top" style={{ color: 'var(--text-muted)', minWidth: 40 }}>
+            <span className="text-xs font-sans font-600 uppercase tracking-widest">#</span>
+            <div className="mt-1 h-[26px]" />
+          </th>
+          <th className="px-4 py-2 text-left align-top" style={{ color: 'var(--text-muted)', minWidth: 180 }}>
+            <span className="text-xs font-sans font-600 uppercase tracking-widest">Personal</span>
+            <ColInput value={f.name} onChange={set('name')} placeholder="Filtrar..." />
+          </th>
+          <th className="px-4 py-2 text-left align-top" style={{ color: 'var(--text-muted)', minWidth: 200 }}>
+            <span className="text-xs font-sans font-600 uppercase tracking-widest">E-mail</span>
+            <ColInput value={f.email} onChange={set('email')} placeholder="Filtrar..." />
+          </th>
+          <th className="px-4 py-2 text-left align-top" style={{ color: 'var(--text-muted)', minWidth: 90 }}>
+            <span className="text-xs font-sans font-600 uppercase tracking-widest">Produtos</span>
+            <div className="mt-1 h-[26px]" />
+          </th>
+          <th className="px-4 py-2 text-left align-top" style={{ color: 'var(--text-muted)', minWidth: 130 }}>
+            <span className="text-xs font-sans font-600 uppercase tracking-widest">Vendas</span>
+            <div className="mt-1 h-[26px]" />
+          </th>
+        </tr>
+        <tr style={{ borderBottom: '1px solid var(--border-color)' }}>
+          <td colSpan={5} className="px-4 py-1.5 text-xs font-sans" style={{ color: 'var(--text-muted)', backgroundColor: 'var(--bg-page)' }}>
+            {filtered.length === items.length ? `${items.length} registros` : `${filtered.length} de ${items.length}`}
+          </td>
         </tr>
       </thead>
       <tbody>
-        {items.map((p, i) => (
+        {filtered.length === 0 ? (
+          <tr>
+            <td colSpan={5} className="px-6 py-10 text-center text-sm font-sans" style={{ color: 'var(--text-muted)' }}>
+              Nenhum resultado para os filtros aplicados.
+            </td>
+          </tr>
+        ) : filtered.map((p, i) => (
           <tr
             key={p.personalId}
             className="transition-colors duration-150"
@@ -237,19 +302,19 @@ function PersonalsTable({ items }: { items: PersonalRow[] }) {
             onMouseEnter={e => (e.currentTarget.style.backgroundColor = 'var(--bg-card-dark)')}
             onMouseLeave={e => (e.currentTarget.style.backgroundColor = 'transparent')}
           >
-            <td className="px-6 py-3.5 text-sm font-grotesk font-700" style={{ color: 'var(--text-muted)' }}>
+            <td className="px-4 py-3.5 text-sm font-grotesk font-700" style={{ color: 'var(--text-muted)' }}>
               {i + 1}
             </td>
-            <td className="px-6 py-3.5 text-sm font-sans font-500 max-w-[160px] truncate" style={{ color: 'var(--text-primary)' }} title={p.personalName}>
+            <td className="px-4 py-3.5 text-sm font-sans font-500 max-w-[180px] truncate" style={{ color: 'var(--text-primary)' }} title={p.personalName}>
               {p.personalName}
             </td>
-            <td className="px-6 py-3.5 text-sm font-sans max-w-[180px] truncate" style={{ color: 'var(--text-secondary)' }} title={p.email ?? undefined}>
+            <td className="px-4 py-3.5 text-sm font-sans max-w-[200px] truncate" style={{ color: 'var(--text-secondary)' }} title={p.email ?? undefined}>
               {p.email ?? '—'}
             </td>
-            <td className="px-6 py-3.5 text-sm font-grotesk font-600" style={{ color: '#08F887' }}>
+            <td className="px-4 py-3.5 text-sm font-grotesk font-600" style={{ color: '#08F887' }}>
               {fmtNum(p.productsCount)}
             </td>
-            <td className="px-6 py-3.5 text-sm font-grotesk font-600" style={{ color: 'var(--text-primary)' }}>
+            <td className="px-4 py-3.5 text-sm font-grotesk font-600" style={{ color: 'var(--text-primary)' }}>
               {fmtNum(p.salesCount)}
             </td>
           </tr>
