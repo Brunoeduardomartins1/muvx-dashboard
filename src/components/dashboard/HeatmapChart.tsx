@@ -1,5 +1,6 @@
 'use client'
 
+import { useRef, useEffect, useState } from 'react'
 import type { DailyHeatmapPoint } from '@/lib/types'
 import { fmtBRL } from '@/lib/utils'
 import { Skeleton } from '@/components/ui/Skeleton'
@@ -11,6 +12,10 @@ interface Props {
 
 const WEEKDAY_LABELS = ['D', 'S', 'T', 'Q', 'Q', 'S', 'S']
 const MONTH_NAMES = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez']
+const LABEL_W = 14
+const CELL_GAP = 3
+const MIN_CELL = 10
+const MAX_CELL = 18
 
 function getColor(count: number, max: number): string {
   if (count === 0 || max === 0) return 'var(--border-color)'
@@ -22,21 +27,47 @@ function getColor(count: number, max: number): string {
   return '#08F887'
 }
 
-// Format date as YYYY-MM-DD using LOCAL timezone (avoids UTC shift)
 function localISO(d: Date): string {
-  const y = d.getFullYear()
-  const m = String(d.getMonth() + 1).padStart(2, '0')
-  const day = String(d.getDate()).padStart(2, '0')
-  return `${y}-${m}-${day}`
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
 }
 
-// Parse YYYY-MM-DD as local date (avoids UTC shift when constructing from string)
 function parseLocal(iso: string): Date {
   const [y, m, d] = iso.split('-').map(Number)
   return new Date(y, m - 1, d)
 }
 
 export function HeatmapChart({ data, isLoading }: Props) {
+  const containerRef = useRef<HTMLDivElement>(null)
+  const [cellSize, setCellSize] = useState(14)
+
+  // Build week grid once so we know the week count for sizing
+  const weeks: Date[][] = []
+  if (data.length > 0) {
+    const startDate = parseLocal(data[0].date)
+    const endDate   = parseLocal(data[data.length - 1].date)
+    const start = new Date(startDate); start.setDate(start.getDate() - start.getDay())
+    const end   = new Date(endDate);   end.setDate(end.getDate() + (6 - end.getDay()))
+    const cur = new Date(start)
+    const days: Date[] = []
+    while (cur <= end) { days.push(new Date(cur)); cur.setDate(cur.getDate() + 1) }
+    for (let i = 0; i < days.length; i += 7) weeks.push(days.slice(i, i + 7))
+  }
+
+  useEffect(() => {
+    if (!containerRef.current || weeks.length === 0) return
+    const calc = () => {
+      const w = containerRef.current!.clientWidth
+      // available width = total - label column - gaps between weeks
+      const available = w - LABEL_W - 4 - (weeks.length - 1) * CELL_GAP
+      const raw = Math.floor(available / weeks.length)
+      setCellSize(Math.min(MAX_CELL, Math.max(MIN_CELL, raw)))
+    }
+    calc()
+    const ro = new ResizeObserver(calc)
+    ro.observe(containerRef.current)
+    return () => ro.disconnect()
+  }, [weeks.length])
+
   if (isLoading) {
     return (
       <div className="card rounded-card p-8">
@@ -57,33 +88,14 @@ export function HeatmapChart({ data, isLoading }: Props) {
     )
   }
 
-  const maxCount = Math.max(...data.map(d => d.count), 1)
+  const maxCount  = Math.max(...data.map(d => d.count), 1)
   const byDate: Record<string, DailyHeatmapPoint> = {}
   for (const d of data) byDate[d.date] = d
 
-  // Use local dates to avoid UTC timezone shift
   const startDate = parseLocal(data[0].date)
   const endDate   = parseLocal(data[data.length - 1].date)
 
-  // Pad to full weeks (Sun → Sat)
-  const start = new Date(startDate)
-  start.setDate(start.getDate() - start.getDay())
-  const end = new Date(endDate)
-  end.setDate(end.getDate() + (6 - end.getDay()))
-
-  // Generate every day in range
-  const days: Date[] = []
-  const cur = new Date(start)
-  while (cur <= end) {
-    days.push(new Date(cur))
-    cur.setDate(cur.getDate() + 1)
-  }
-
-  // Group into columns of 7 (one column = one week, top=Sun, bottom=Sat)
-  const weeks: Date[][] = []
-  for (let i = 0; i < days.length; i += 7) weeks.push(days.slice(i, i + 7))
-
-  // Month labels: one per month change
+  // Month labels
   const monthLabels: { weekIdx: number; label: string }[] = []
   weeks.forEach((week, wi) => {
     const label = MONTH_NAMES[week[0].getMonth()]
@@ -92,10 +104,7 @@ export function HeatmapChart({ data, isLoading }: Props) {
     }
   })
 
-  const cellSize = 14
-  const cellGap  = 3
-  const step     = cellSize + cellGap
-  const labelW   = 14  // weekday label column width
+  const step = cellSize + CELL_GAP
 
   return (
     <div className="card rounded-card p-8">
@@ -104,41 +113,29 @@ export function HeatmapChart({ data, isLoading }: Props) {
         <p className="text-xs font-sans mt-0.5" style={{ color: 'var(--text-muted)' }}>Volume de vendas por dia</p>
       </div>
 
-      <div className="overflow-x-auto">
-        <div style={{ display: 'inline-flex', flexDirection: 'column', gap: 0 }}>
+      <div ref={containerRef} style={{ width: '100%' }}>
+        <div style={{ display: 'flex', flexDirection: 'column' }}>
 
-          {/* Month labels row — aligned with week columns */}
-          <div style={{ display: 'flex', marginLeft: labelW + 4, marginBottom: 5 }}>
+          {/* Month labels */}
+          <div style={{ display: 'flex', marginLeft: LABEL_W + 4, marginBottom: 5 }}>
             {weeks.map((_, wi) => {
               const ml = monthLabels.find(m => m.weekIdx === wi)
               return (
                 <div key={wi} style={{ width: step, flexShrink: 0 }}>
                   {ml && (
-                    <span style={{ fontSize: 10, color: 'var(--text-muted)', fontFamily: 'var(--font-dm-sans)' }}>
-                      {ml.label}
-                    </span>
+                    <span style={{ fontSize: 10, color: 'var(--text-muted)' }}>{ml.label}</span>
                   )}
                 </div>
               )
             })}
           </div>
 
-          {/* Weekday labels + week grid side by side */}
+          {/* Labels + grid */}
           <div style={{ display: 'flex', gap: 4 }}>
-
-            {/* Weekday labels column */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: cellGap, width: labelW, flexShrink: 0 }}>
+            {/* Weekday labels */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: CELL_GAP, width: LABEL_W, flexShrink: 0 }}>
               {WEEKDAY_LABELS.map((l, i) => (
-                <div
-                  key={i}
-                  style={{
-                    height: cellSize,
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'flex-end',
-                  }}
-                >
-                  {/* show every other label: Mon, Wed, Fri */}
+                <div key={i} style={{ height: cellSize, display: 'flex', alignItems: 'center', justifyContent: 'flex-end' }}>
                   {(i === 1 || i === 3 || i === 5) && (
                     <span style={{ fontSize: 9, color: 'var(--text-muted)', lineHeight: 1 }}>{l}</span>
                   )}
@@ -146,18 +143,17 @@ export function HeatmapChart({ data, isLoading }: Props) {
               ))}
             </div>
 
-            {/* Week columns */}
-            <div style={{ display: 'flex', gap: cellGap }}>
+            {/* Week columns — fill available width */}
+            <div style={{ display: 'flex', gap: CELL_GAP, flex: 1 }}>
               {weeks.map((week, wi) => (
-                <div key={wi} style={{ display: 'flex', flexDirection: 'column', gap: cellGap }}>
+                <div key={wi} style={{ display: 'flex', flexDirection: 'column', gap: CELL_GAP, flex: 1 }}>
                   {week.map((day, di) => {
-                    const iso    = localISO(day)
-                    const pt     = byDate[iso]
+                    const iso     = localISO(day)
+                    const pt      = byDate[iso]
                     const inRange = day >= startDate && day <= endDate
-                    const bg     = inRange && pt && pt.count > 0
+                    const bg      = inRange && pt && pt.count > 0
                       ? getColor(pt.count, maxCount)
-                      : inRange ? 'var(--border-color)' : 'var(--border-color)'
-                    const opacity = inRange ? 1 : 0.18
+                      : 'var(--border-color)'
                     const tip = inRange
                       ? pt && pt.count > 0
                         ? `${iso}: ${pt.count} venda${pt.count > 1 ? 's' : ''} · ${fmtBRL(pt.revenue)}`
@@ -168,13 +164,11 @@ export function HeatmapChart({ data, isLoading }: Props) {
                         key={di}
                         title={tip}
                         style={{
-                          width: cellSize,
                           height: cellSize,
                           borderRadius: 3,
                           backgroundColor: bg,
-                          opacity,
+                          opacity: inRange ? 1 : 0.18,
                           cursor: inRange && pt?.count ? 'pointer' : 'default',
-                          flexShrink: 0,
                         }}
                       />
                     )
@@ -185,18 +179,10 @@ export function HeatmapChart({ data, isLoading }: Props) {
           </div>
 
           {/* Legend */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginTop: 10, marginLeft: labelW + 4 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginTop: 10, marginLeft: LABEL_W + 4 }}>
             <span style={{ fontSize: 10, color: 'var(--text-muted)', marginRight: 2 }}>Menos</span>
             {[0, 0.2, 0.45, 0.7, 1].map((v, i) => (
-              <div
-                key={i}
-                style={{
-                  width: cellSize,
-                  height: cellSize,
-                  borderRadius: 3,
-                  backgroundColor: v === 0 ? 'var(--border-color)' : getColor(Math.round(v * maxCount), maxCount),
-                }}
-              />
+              <div key={i} style={{ width: cellSize, height: cellSize, borderRadius: 3, backgroundColor: v === 0 ? 'var(--border-color)' : getColor(Math.round(v * maxCount), maxCount) }} />
             ))}
             <span style={{ fontSize: 10, color: 'var(--text-muted)', marginLeft: 2 }}>Mais</span>
           </div>
