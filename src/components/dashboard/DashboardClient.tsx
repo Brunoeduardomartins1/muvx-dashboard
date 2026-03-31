@@ -17,10 +17,14 @@ import { PipelineBar } from './PipelineBar'
 import { DataTable } from './DataTable'
 import { TopPersonais } from './TopPersonais'
 import { TopStudents } from './TopStudents'
+import { TopPlans } from './TopPlans'
 import { MuvxRevenueCard } from './MuvxRevenueCard'
 import { FunnelCard } from './FunnelCard'
 import { WeeklySalesChart } from './WeeklySalesChart'
 import { PaymentMethodChart } from './PaymentMethodChart'
+import { VelocityCards } from './VelocityCards'
+import { AlertBanner } from './AlertBanner'
+import { HeatmapChart } from './HeatmapChart'
 import { StatCardSkeleton } from '@/components/ui/Skeleton'
 import { DrillDownModal } from '@/components/ui/DrillDownModal'
 import type { Purchase, PersonalRow } from '@/lib/types'
@@ -63,6 +67,17 @@ export function DashboardClient() {
           <span className="text-xs font-sans font-600 uppercase tracking-widest flex-shrink-0" style={{ color: 'var(--text-muted)' }}>Período</span>
           <PeriodFilter period={period} onSelectPreset={selectPreset} onSelectCustom={selectCustom} />
         </section>
+
+        {/* Alertas automáticos */}
+        {data && (
+          <AlertBanner
+            churnRate={data.churnRate}
+            crefPending={data.crefPending}
+            inactivePersonals={data.inactivePersonals}
+            completedSales={data.completedSales}
+            avgRating={data.avgRating}
+          />
+        )}
 
         {isError && !data && (
           <div className="rounded-xl px-6 py-3 flex items-center gap-2" style={{ border: '1px solid rgba(239,68,68,0.2)', backgroundColor: 'rgba(239,68,68,0.05)' }}>
@@ -147,6 +162,17 @@ export function DashboardClient() {
           )}
         </section>
 
+        {/* ── Row 5 — LTV + Velocidade + Projeção ── */}
+        <section className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <VelocityCards
+            ltv={data?.ltv ?? 0}
+            salesVelocity={data?.salesVelocity ?? 0}
+            projectedMonthRevenue={data?.projectedMonthRevenue ?? 0}
+            periodStudents={data?.periodStudents ?? 0}
+            isLoading={showSkeletons}
+          />
+        </section>
+
         {/* ── Card grande — Faturamento MUVX ── */}
         <section>
           <MuvxRevenueCard
@@ -157,14 +183,14 @@ export function DashboardClient() {
           />
         </section>
 
-        {/* ── Row 5 — Gráficos de análise ── */}
+        {/* ── Row 6 — Gráficos de análise ── */}
         <section className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           <BarChartComponent purchasesByStatus={data?.purchasesByStatus ?? {}} isLoading={showSkeletons} />
           <ConversionRing rate={data?.conversionRate ?? 0} isLoading={showSkeletons} />
           <GoalGauge revenue={data?.revenueInPeriod ?? 0} goal={REVENUE_GOAL} isLoading={showSkeletons} />
         </section>
 
-        {/* ── Row 6 — Funil + Método pagamento + Dias da semana ── */}
+        {/* ── Row 7 — Funil + Método pagamento + Dias da semana ── */}
         <section className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           <FunnelCard
             registered={data?.funnelRegistered ?? 0}
@@ -180,18 +206,28 @@ export function DashboardClient() {
           <WeeklySalesChart data={data?.salesByWeekday ?? []} isLoading={showSkeletons} />
         </section>
 
-        {/* ── Row 7 — Pipeline + Tabela de compras ── */}
+        {/* ── Row 8 — Mapa de calor ── */}
+        <section>
+          <HeatmapChart data={data?.dailyHeatmap ?? []} isLoading={showSkeletons} />
+        </section>
+
+        {/* ── Row 9 — Pipeline + Tabela de compras ── */}
         <section className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           <PipelineBar purchasesByStatus={data?.purchasesByStatus ?? {}} totalPersonals={data?.totalPersonals ?? 0} crefPending={data?.crefPending ?? 0} isLoading={showSkeletons} />
           <DataTable purchases={data?.recentPurchases ?? []} isLoading={showSkeletons} />
         </section>
 
-        {/* ── Row 8 — Top Personais + Top Alunos ── */}
+        {/* ── Row 10 — Top Personais + Top Alunos ── */}
         <section className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           <div className="lg:col-span-2">
             <TopPersonais topPersonals={data?.topPersonals ?? []} isLoading={showSkeletons} />
           </div>
           <TopStudents topStudents={data?.topStudents ?? []} isLoading={showSkeletons} />
+        </section>
+
+        {/* ── Row 11 — Top Planos ── */}
+        <section>
+          <TopPlans topPlans={data?.topPlans ?? []} isLoading={showSkeletons} />
         </section>
 
       </main>
