@@ -128,20 +128,20 @@ export function DashboardClient() {
                 label="Personais com Produto"
                 value={data?.personalsWithProduct ?? 0}
                 icon={<Package size={16} />}
-                sublabel="cadastraram ao menos 1 produto"
+                sublabel={`de ${data?.totalPersonals ?? 0} personais na plataforma`}
               />
               <StatCard
                 label="Personais com Venda"
                 value={data?.personalsWithSale ?? 0}
                 icon={<ShoppingCart size={16} />}
-                sublabel="realizaram ao menos 1 venda"
+                sublabel={`no período · ${data?.personalsWithSaleTotal ?? 0} total histórico`}
               />
               <StatCard
                 label="Conversão de Personais"
                 value={data?.conversionRate ?? 0}
                 format="number"
                 icon={<Percent size={16} />}
-                sublabel={`${data?.personalsWithSale ?? 0} venderam no período de ${data?.totalPersonals ?? 0} total`}
+                sublabel={`${data?.personalsWithSale ?? 0} venderam no período · ${data?.personalsWithSaleTotal ?? 0} total histórico`}
               />
             </>
           )}

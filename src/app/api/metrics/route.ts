@@ -101,31 +101,44 @@ export async function GET(req: NextRequest) {
     )
   }
 
-  // Purchases filtradas pelo período selecionado
-  // Personals sem filtro de data — _count.products é histórico total (API não filtra por data de produto)
   const purchasesPath = `/admin/purchases?limit=100&page=1&createdFrom=${encodeURIComponent(createdFrom)}&createdTo=${encodeURIComponent(createdTo)}`
-  const personalsPath = `/admin/personals?limit=100&page=1`
 
-  const [dashboardResult, statsResult, overviewResult, purchasesResult, personalsResult] =
+  // Busca página 1 de personals para descobrir totalPages, depois busca o restante em paralelo
+  const [dashboardResult, statsResult, overviewResult, purchasesResult, personalsPage1Result] =
     await Promise.allSettled([
       muvxGet<AdminDashboard>('/admin/dashboard', token),
       muvxGet<AdminStats>('/admin/dashboard/stats', token),
       muvxGet<AdminOverview>('/admin/stats/overview', token),
       muvxGet<AdminPurchasesResponse>(purchasesPath, token),
-      muvxGet<AdminPersonalsResponse>(personalsPath, token),
+      muvxGet<AdminPersonalsResponse>('/admin/personals?limit=100&page=1', token),
     ])
 
   const dashboard = dashboardResult.status === 'fulfilled' ? dashboardResult.value : null
   const stats = statsResult.status === 'fulfilled' ? statsResult.value : null
   const overview = overviewResult.status === 'fulfilled' ? overviewResult.value : null
   const purchasesData = purchasesResult.status === 'fulfilled' ? purchasesResult.value : null
-  const personalsData = personalsResult.status === 'fulfilled' ? personalsResult.value : null
+  const personalsPage1 = personalsPage1Result.status === 'fulfilled' ? personalsPage1Result.value : null
 
   if (!dashboard) errors.push('admin/dashboard indisponível')
   if (!stats) errors.push('admin/dashboard/stats indisponível')
   if (!overview) errors.push('admin/stats/overview indisponível')
   if (!purchasesData) errors.push('admin/purchases indisponível')
-  if (!personalsData) errors.push('admin/personals indisponível')
+  if (!personalsPage1) errors.push('admin/personals indisponível')
+
+  // Busca páginas restantes de personals em paralelo
+  const totalPersonalsPages = personalsPage1?.meta?.totalPages ?? 1
+  let allPersonals: RawPersonal[] = personalsPage1?.data ?? []
+  if (totalPersonalsPages > 1) {
+    const extraPages = Array.from({ length: totalPersonalsPages - 1 }, (_, i) => i + 2)
+    const extraResults = await Promise.allSettled(
+      extraPages.map(page => muvxGet<AdminPersonalsResponse>(`/admin/personals?limit=100&page=${page}`, token))
+    )
+    for (const r of extraResults) {
+      if (r.status === 'fulfilled' && r.value?.data) {
+        allPersonals = allPersonals.concat(r.value.data)
+      }
+    }
+  }
 
   // --- Totais globais (não mudam com período) ---
   const totalUsers = dashboard?.totals?.users ?? 0
@@ -212,11 +225,13 @@ export async function GET(req: NextRequest) {
   const muvxRevenue = revenueInPeriod * MUVX_FEE_PCT + completedSales * MUVX_FEE_FIXED
 
   // --- Engajamento de personais ---
-  // personalsWithProduct: personais (qualquer época) que têm ao menos 1 produto cadastrado
-  const rawPersonals: RawPersonal[] = personalsData?.data ?? []
-  const personalsWithProduct = rawPersonals.filter(p => (p._count?.products ?? 0) > 0).length
+  // personalsWithProduct: todos os personais da plataforma com ao menos 1 produto (histórico total)
+  const personalsWithProduct = allPersonals.filter(p => (p._count?.products ?? 0) > 0).length
 
-  // personalsWithSale no período: personais únicos que aparecem nas purchases do período
+  // personalsWithSaleTotal: todos os personais com ao menos 1 venda histórica (_count.salesReceived)
+  const personalsWithSaleTotal = allPersonals.filter(p => (p._count?.salesReceived ?? 0) > 0).length
+
+  // personalsWithSale no período: personais únicos nas purchases do período selecionado
   const personalsWithSale = Object.keys(personalSalesMap).length
 
   // --- Top Personais no período ---
@@ -275,6 +290,7 @@ export async function GET(req: NextRequest) {
     recentPurchases,
     personalsWithProduct,
     personalsWithSale,
+    personalsWithSaleTotal,
     topPersonals,
     conversionRate,
     errors,

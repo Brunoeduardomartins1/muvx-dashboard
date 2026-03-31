@@ -54,8 +54,9 @@ export interface MetricsResponse {
   recentPurchases: Purchase[]
 
   // Engajamento de personais
-  personalsWithProduct: number  // personais que criaram ao menos 1 produto
-  personalsWithSale: number     // personais que realizaram ao menos 1 venda
+  personalsWithProduct: number      // personais com ao menos 1 produto (histórico total)
+  personalsWithSale: number         // personais com venda no período selecionado
+  personalsWithSaleTotal: number    // personais com ao menos 1 venda histórica (total geral)
 
   // Top personais
   topPersonals: TopPersonal[]
