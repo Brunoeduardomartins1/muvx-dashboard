@@ -32,7 +32,7 @@ export function PaymentMethodChart({ breakdown, recurrenceBreakdown, isLoading }
   const recurrenceEntries = Object.entries(recurrenceBreakdown).sort((a, b) => b[1] - a[1])
 
   return (
-    <div className="card rounded-card p-8">
+    <div className="card rounded-card p-8 flex flex-col">
       <div className="mb-5">
         <h3 className="font-grotesk font-700 text-base" style={{ color: 'var(--text-primary)' }}>
           Métodos de Pagamento

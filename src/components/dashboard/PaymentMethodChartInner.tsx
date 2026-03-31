@@ -56,8 +56,8 @@ export default function PaymentMethodChartInner({ breakdown }: { breakdown: Reco
   const total = data.reduce((s, d) => s + d.value, 0)
 
   return (
-    <div className="flex flex-col h-full">
-      <div style={{ height: 120 }}>
+    <div className="flex flex-col">
+      <div style={{ height: 110 }}>
         <ResponsiveContainer width="100%" height="100%">
           <PieChart>
             <Pie data={data} cx="50%" cy="50%" innerRadius="45%" outerRadius="70%" dataKey="value" strokeWidth={0}>
