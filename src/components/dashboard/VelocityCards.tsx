@@ -67,7 +67,7 @@ export function VelocityCards({ ltv, salesVelocity, projectedMonthRevenue, perio
       />
       <MiniCard
         label="Projeção Mensal"
-        sublabel="Receita estimada ao ritmo atual × 30 dias"
+        sublabel="Realizado + agendado + projeção ao ritmo atual"
         value={fmtBRL(projectedMonthRevenue)}
         icon={<Target size={14} />}
         color="#F59E0B"

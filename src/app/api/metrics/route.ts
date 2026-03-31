@@ -249,9 +249,9 @@ export async function GET(req: NextRequest) {
   // Velocidade de vendas: vendas concluídas por dia no período
   const salesVelocity = completedSales / daysInPeriod
 
-  // Projeção mensal: velocity * dias restantes + receita já feita no mês
-  // Se o período é "este mês", projeta o mês fechado; senão usa velocity * 30
-  const projectedMonthRevenue = salesVelocity * daysInMonth * avgTicket
+  // Projeção mensal: receita já realizada (completed) + agendada (scheduled) + velocity × dias restantes
+  const daysRemaining = Math.max(0, daysInMonth - dayOfMonth)
+  const projectedMonthRevenue = revenueInPeriod + scheduledRevenue + salesVelocity * avgTicket * daysRemaining
 
   // Top planos
   const topPlans: TopPlan[] = Object.entries(planMap)
@@ -353,9 +353,6 @@ export async function GET(req: NextRequest) {
     billingType: p.billingType ?? null,
     recurrenceInterval: p.recurrenceInterval ?? null,
   }))
-
-  // unused but kept for type completeness
-  void dayOfMonth
 
   const response: MetricsResponse = {
     fetchedAt: new Date().toISOString(),

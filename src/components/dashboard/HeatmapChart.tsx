@@ -22,6 +22,20 @@ function getColor(count: number, max: number): string {
   return '#08F887'
 }
 
+// Format date as YYYY-MM-DD using LOCAL timezone (avoids UTC shift)
+function localISO(d: Date): string {
+  const y = d.getFullYear()
+  const m = String(d.getMonth() + 1).padStart(2, '0')
+  const day = String(d.getDate()).padStart(2, '0')
+  return `${y}-${m}-${day}`
+}
+
+// Parse YYYY-MM-DD as local date (avoids UTC shift when constructing from string)
+function parseLocal(iso: string): Date {
+  const [y, m, d] = iso.split('-').map(Number)
+  return new Date(y, m - 1, d)
+}
+
 export function HeatmapChart({ data, isLoading }: Props) {
   if (isLoading) {
     return (
@@ -47,21 +61,29 @@ export function HeatmapChart({ data, isLoading }: Props) {
   const byDate: Record<string, DailyHeatmapPoint> = {}
   for (const d of data) byDate[d.date] = d
 
-  const startDate = new Date(data[0].date)
-  const endDate   = new Date(data[data.length - 1].date)
+  // Use local dates to avoid UTC timezone shift
+  const startDate = parseLocal(data[0].date)
+  const endDate   = parseLocal(data[data.length - 1].date)
 
+  // Pad to full weeks (Sun → Sat)
   const start = new Date(startDate)
   start.setDate(start.getDate() - start.getDay())
   const end = new Date(endDate)
   end.setDate(end.getDate() + (6 - end.getDay()))
 
+  // Generate every day in range
   const days: Date[] = []
   const cur = new Date(start)
-  while (cur <= end) { days.push(new Date(cur)); cur.setDate(cur.getDate() + 1) }
+  while (cur <= end) {
+    days.push(new Date(cur))
+    cur.setDate(cur.getDate() + 1)
+  }
 
+  // Group into columns of 7 (one column = one week, top=Sun, bottom=Sat)
   const weeks: Date[][] = []
   for (let i = 0; i < days.length; i += 7) weeks.push(days.slice(i, i + 7))
 
+  // Month labels: one per month change
   const monthLabels: { weekIdx: number; label: string }[] = []
   weeks.forEach((week, wi) => {
     const label = MONTH_NAMES[week[0].getMonth()]
@@ -70,9 +92,10 @@ export function HeatmapChart({ data, isLoading }: Props) {
     }
   })
 
-  const cellSize = 13
+  const cellSize = 14
   const cellGap  = 3
   const step     = cellSize + cellGap
+  const labelW   = 14  // weekday label column width
 
   return (
     <div className="card rounded-card p-8">
@@ -82,49 +105,76 @@ export function HeatmapChart({ data, isLoading }: Props) {
       </div>
 
       <div className="overflow-x-auto">
-        <div style={{ display: 'inline-block', minWidth: weeks.length * step + 24 }}>
-          {/* Month labels */}
-          <div style={{ display: 'flex', marginLeft: 20, marginBottom: 4 }}>
+        <div style={{ display: 'inline-flex', flexDirection: 'column', gap: 0 }}>
+
+          {/* Month labels row — aligned with week columns */}
+          <div style={{ display: 'flex', marginLeft: labelW + 4, marginBottom: 5 }}>
             {weeks.map((_, wi) => {
               const ml = monthLabels.find(m => m.weekIdx === wi)
               return (
                 <div key={wi} style={{ width: step, flexShrink: 0 }}>
-                  {ml && <span style={{ fontSize: 10, color: 'var(--text-muted)', fontFamily: 'var(--font-dm-sans)' }}>{ml.label}</span>}
+                  {ml && (
+                    <span style={{ fontSize: 10, color: 'var(--text-muted)', fontFamily: 'var(--font-dm-sans)' }}>
+                      {ml.label}
+                    </span>
+                  )}
                 </div>
               )
             })}
           </div>
 
-          {/* Grid */}
-          <div style={{ display: 'flex' }}>
-            {/* Weekday labels */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: cellGap, marginRight: 4 }}>
+          {/* Weekday labels + week grid side by side */}
+          <div style={{ display: 'flex', gap: 4 }}>
+
+            {/* Weekday labels column */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: cellGap, width: labelW, flexShrink: 0 }}>
               {WEEKDAY_LABELS.map((l, i) => (
-                <div key={i} style={{ width: 12, height: cellSize, display: 'flex', alignItems: 'center', justifyContent: 'flex-end' }}>
-                  <span style={{ fontSize: 9, color: 'var(--text-muted)', fontFamily: 'var(--font-dm-sans)' }}>{i % 2 === 1 ? l : ''}</span>
+                <div
+                  key={i}
+                  style={{
+                    height: cellSize,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'flex-end',
+                  }}
+                >
+                  {/* show every other label: Mon, Wed, Fri */}
+                  {(i === 1 || i === 3 || i === 5) && (
+                    <span style={{ fontSize: 9, color: 'var(--text-muted)', lineHeight: 1 }}>{l}</span>
+                  )}
                 </div>
               ))}
             </div>
 
-            {/* Weeks columns */}
+            {/* Week columns */}
             <div style={{ display: 'flex', gap: cellGap }}>
               {weeks.map((week, wi) => (
                 <div key={wi} style={{ display: 'flex', flexDirection: 'column', gap: cellGap }}>
                   {week.map((day, di) => {
-                    const iso = day.toISOString().split('T')[0]
-                    const pt  = byDate[iso]
+                    const iso    = localISO(day)
+                    const pt     = byDate[iso]
                     const inRange = day >= startDate && day <= endDate
+                    const bg     = inRange && pt && pt.count > 0
+                      ? getColor(pt.count, maxCount)
+                      : inRange ? 'var(--border-color)' : 'var(--border-color)'
+                    const opacity = inRange ? 1 : 0.18
+                    const tip = inRange
+                      ? pt && pt.count > 0
+                        ? `${iso}: ${pt.count} venda${pt.count > 1 ? 's' : ''} · ${fmtBRL(pt.revenue)}`
+                        : `${iso}: sem vendas`
+                      : iso
                     return (
                       <div
                         key={di}
-                        title={inRange && pt ? `${iso}: ${pt.count} vendas · ${fmtBRL(pt.revenue)}` : iso}
+                        title={tip}
                         style={{
                           width: cellSize,
                           height: cellSize,
                           borderRadius: 3,
-                          backgroundColor: inRange && pt ? getColor(pt.count, maxCount) : 'var(--border-color)',
-                          opacity: inRange ? 1 : 0.25,
+                          backgroundColor: bg,
+                          opacity,
                           cursor: inRange && pt?.count ? 'pointer' : 'default',
+                          flexShrink: 0,
                         }}
                       />
                     )
@@ -135,12 +185,20 @@ export function HeatmapChart({ data, isLoading }: Props) {
           </div>
 
           {/* Legend */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 10, marginLeft: 16 }}>
-            <span style={{ fontSize: 10, color: 'var(--text-muted)' }}>Menos</span>
-            {[0, 0.25, 0.5, 0.75, 1].map((v, i) => (
-              <div key={i} style={{ width: cellSize, height: cellSize, borderRadius: 3, backgroundColor: getColor(Math.round(v * maxCount), maxCount) }} />
+          <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginTop: 10, marginLeft: labelW + 4 }}>
+            <span style={{ fontSize: 10, color: 'var(--text-muted)', marginRight: 2 }}>Menos</span>
+            {[0, 0.2, 0.45, 0.7, 1].map((v, i) => (
+              <div
+                key={i}
+                style={{
+                  width: cellSize,
+                  height: cellSize,
+                  borderRadius: 3,
+                  backgroundColor: v === 0 ? 'var(--border-color)' : getColor(Math.round(v * maxCount), maxCount),
+                }}
+              />
             ))}
-            <span style={{ fontSize: 10, color: 'var(--text-muted)' }}>Mais</span>
+            <span style={{ fontSize: 10, color: 'var(--text-muted)', marginLeft: 2 }}>Mais</span>
           </div>
         </div>
       </div>

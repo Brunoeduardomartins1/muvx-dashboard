@@ -13,14 +13,21 @@ interface Props {
 
 function unique<T>(arr: T[]): T[] { return Array.from(new Set(arr)) }
 
+type SortMode = 'revenue' | 'count'
+
 export function TopPlans({ topPlans, isLoading }: Props) {
   const [fName, setFName] = useState(new Set<string>())
+  const [sortMode, setSortMode] = useState<SortMode>('revenue')
 
-  const filtered = useMemo(() => topPlans.filter(p =>
-    fName.size === 0 || fName.has(p.planName)
-  ), [topPlans, fName])
+  const sorted = useMemo(() => {
+    const base = topPlans.filter(p => fName.size === 0 || fName.has(p.planName))
+    return [...base].sort((a, b) =>
+      sortMode === 'revenue' ? b.revenue - a.revenue : b.count - a.count
+    )
+  }, [topPlans, fName, sortMode])
 
-  const total = filtered.reduce((s, p) => s + p.revenue, 0)
+  const maxRevenue = useMemo(() => Math.max(...sorted.map(p => p.revenue), 1), [sorted])
+  const maxCount   = useMemo(() => Math.max(...sorted.map(p => p.count), 1), [sorted])
 
   if (isLoading) {
     return (
@@ -46,15 +53,39 @@ export function TopPlans({ topPlans, isLoading }: Props) {
             Planos mais vendidos (concluídos) no período
           </p>
         </div>
-        <ExcelFilter label="Plano" values={nameOpts} selected={fName} onChangeSelected={setFName} minWidth={100} />
+        <div className="flex items-center gap-2 flex-shrink-0">
+          {/* Toggle faturamento / vendas */}
+          <div
+            className="flex rounded-lg overflow-hidden"
+            style={{ border: '1px solid var(--border-color)' }}
+          >
+            {(['revenue', 'count'] as SortMode[]).map(mode => (
+              <button
+                key={mode}
+                onClick={() => setSortMode(mode)}
+                className="px-3 py-1.5 text-xs font-sans font-600 transition-colors"
+                style={{
+                  backgroundColor: sortMode === mode ? '#08F887' : 'transparent',
+                  color: sortMode === mode ? '#0A0C10' : 'var(--text-muted)',
+                }}
+              >
+                {mode === 'revenue' ? 'Faturamento' : 'Nº Vendas'}
+              </button>
+            ))}
+          </div>
+          <ExcelFilter label="Plano" values={nameOpts} selected={fName} onChangeSelected={setFName} minWidth={90} />
+        </div>
       </div>
 
-      {filtered.length === 0 ? (
+      {sorted.length === 0 ? (
         <p className="text-sm font-sans" style={{ color: 'var(--text-muted)' }}>Sem dados no período.</p>
       ) : (
         <div className="space-y-3">
-          {filtered.map((plan, i) => {
-            const pct = total > 0 ? (plan.revenue / total) * 100 : 0
+          {sorted.map((plan, i) => {
+            const pct = sortMode === 'revenue'
+              ? (plan.revenue / maxRevenue) * 100
+              : (plan.count / maxCount) * 100
+            const color = i === 0 ? '#08F887' : '#06B6D4'
             return (
               <div key={plan.planName}>
                 <div className="flex items-center gap-3 mb-1">
@@ -74,15 +105,14 @@ export function TopPlans({ topPlans, isLoading }: Props) {
                   <span className="text-xs font-sans flex-shrink-0" style={{ color: 'var(--text-muted)' }}>
                     {fmtNum(plan.count)}x
                   </span>
-                  <span className="text-sm font-grotesk font-700 flex-shrink-0" style={{ color: '#08F887' }}>
+                  <span className="text-sm font-grotesk font-700 flex-shrink-0" style={{ color }}>
                     {fmtBRL(plan.revenue)}
                   </span>
                 </div>
-                {/* progress bar */}
                 <div className="ml-8 h-1 rounded-full overflow-hidden" style={{ backgroundColor: 'var(--border-color)' }}>
                   <div
                     className="h-full rounded-full transition-all duration-500"
-                    style={{ width: `${pct}%`, backgroundColor: i === 0 ? '#08F887' : '#06B6D4' }}
+                    style={{ width: `${pct}%`, backgroundColor: color }}
                   />
                 </div>
               </div>
