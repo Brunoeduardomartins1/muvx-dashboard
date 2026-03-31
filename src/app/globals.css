@@ -1,0 +1,77 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  /* Brand Greens */
+  --green: #08F887;
+  --green-dark: #059660;
+  --green-subtle: rgba(8, 248, 135, 0.12);
+  --green-dim: #06D474;
+  --green-surface: rgba(8, 248, 135, 0.06);
+
+  /* Superfícies Dark */
+  --dark: #0A0C10;
+  --dark-card: #18181B;
+
+  /* Superfícies Light */
+  --background: #FAFAFA;
+  --surface: #FFFFFF;
+  --border: #E5E7EB;
+
+  /* Texto */
+  --text: #111827;
+  --text-secondary: #4B5563;
+  --text-muted: #9CA3AF;
+  --text-on-dark: #FFFFFF;
+
+  /* Status */
+  --status-online: #08F887;
+  --status-processing: #F59E0B;
+  --status-error: #EF4444;
+  --status-inactive: #9CA3AF;
+}
+
+@layer base {
+  * {
+    box-sizing: border-box;
+  }
+
+  body {
+    background-color: var(--background);
+    color: var(--text);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+}
+
+@layer components {
+  .card-hover {
+    transition: transform 200ms ease, box-shadow 200ms ease, border-color 200ms ease;
+  }
+  .card-hover:hover {
+    transform: translateY(-2px);
+    border-color: rgba(8, 248, 135, 0.4) !important;
+    box-shadow: 0 8px 32px rgba(8, 248, 135, 0.12);
+  }
+}
+
+@layer utilities {
+  .skeleton {
+    background-color: #E5E7EB;
+    border-radius: 8px;
+    animation: skeleton-pulse 1.5s ease-in-out infinite;
+  }
+
+  @keyframes skeleton-pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.45; }
+  }
+
+  .gradient-text {
+    background: linear-gradient(135deg, #08F887 0%, #06B6D4 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+}
