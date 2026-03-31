@@ -101,10 +101,10 @@ export async function GET(req: NextRequest) {
     )
   }
 
-  // Totais globais não dependem de período
-  // Purchases e personals filtrados pelo período
+  // Purchases filtradas pelo período selecionado
+  // Personals sem filtro de data — _count.products é histórico total (API não filtra por data de produto)
   const purchasesPath = `/admin/purchases?limit=100&page=1&createdFrom=${encodeURIComponent(createdFrom)}&createdTo=${encodeURIComponent(createdTo)}`
-  const personalsPath = `/admin/personals?limit=100&page=1&createdFrom=${encodeURIComponent(createdFrom)}&createdTo=${encodeURIComponent(createdTo)}`
+  const personalsPath = `/admin/personals?limit=100&page=1`
 
   const [dashboardResult, statsResult, overviewResult, purchasesResult, personalsResult] =
     await Promise.allSettled([
@@ -211,10 +211,13 @@ export async function GET(req: NextRequest) {
 
   const muvxRevenue = revenueInPeriod * MUVX_FEE_PCT + completedSales * MUVX_FEE_FIXED
 
-  // --- Personais cadastrados no período ---
+  // --- Engajamento de personais ---
+  // personalsWithProduct: personais (qualquer época) que têm ao menos 1 produto cadastrado
   const rawPersonals: RawPersonal[] = personalsData?.data ?? []
   const personalsWithProduct = rawPersonals.filter(p => (p._count?.products ?? 0) > 0).length
-  const personalsWithSale = rawPersonals.filter(p => (p._count?.salesReceived ?? 0) > 0).length
+
+  // personalsWithSale no período: personais únicos que aparecem nas purchases do período
+  const personalsWithSale = Object.keys(personalSalesMap).length
 
   // --- Top Personais no período ---
   const topPersonals: TopPersonal[] = Object.entries(personalSalesMap)
@@ -234,9 +237,8 @@ export async function GET(req: NextRequest) {
     .sort((a, b) => b.grossRevenue - a.grossRevenue || b.totalSales - a.totalSales)
     .slice(0, 10)
 
-  // Conversão: personais com venda no período / total de personais cadastrados no período
-  const periodPersonalsTotal = rawPersonals.length
-  const conversionRate = periodPersonalsTotal > 0 ? (personalsWithSale / periodPersonalsTotal) * 100 : 0
+  // Conversão: personais que venderam no período / total geral de personais da plataforma
+  const conversionRate = totalPersonals > 0 ? (personalsWithSale / totalPersonals) * 100 : 0
 
   const recentPurchases: Purchase[] = rawPurchases.slice(0, 10).map((p) => ({
     id: p.id ?? '',

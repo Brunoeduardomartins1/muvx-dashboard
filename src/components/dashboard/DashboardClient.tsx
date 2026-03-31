@@ -141,7 +141,7 @@ export function DashboardClient() {
                 value={data?.conversionRate ?? 0}
                 format="number"
                 icon={<Percent size={16} />}
-                sublabel={`${data?.personalsWithSale ?? 0} de ${data?.totalPersonals ?? 0} personais venderam`}
+                sublabel={`${data?.personalsWithSale ?? 0} venderam no período de ${data?.totalPersonals ?? 0} total`}
               />
             </>
           )}
