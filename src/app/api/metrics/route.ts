@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getMuvxToken, muvxGet } from '@/lib/api'
-import type { MetricsResponse, Purchase, TopPersonal } from '@/lib/types'
+import type { MetricsResponse, Purchase, TopPersonal, PersonalRow } from '@/lib/types'
 
 export const dynamic = 'force-dynamic'
 
@@ -51,7 +51,7 @@ interface AdminPurchasesResponse {
 
 interface RawPersonal {
   id?: string
-  user?: { fullName?: string; name?: string }
+  user?: { fullName?: string; name?: string; email?: string }
   _count?: {
     products?: number
     salesReceived?: number
@@ -225,14 +225,47 @@ export async function GET(req: NextRequest) {
   const muvxRevenue = revenueInPeriod * MUVX_FEE_PCT + completedSales * MUVX_FEE_FIXED
 
   // --- Engajamento de personais ---
-  // personalsWithProduct: todos os personais da plataforma com ao menos 1 produto (histórico total)
-  const personalsWithProduct = allPersonals.filter(p => (p._count?.products ?? 0) > 0).length
+  const toPersonalRow = (p: RawPersonal): PersonalRow => ({
+    personalId: p.id ?? '',
+    personalName: p.user?.fullName ?? p.user?.name ?? 'Desconhecido',
+    email: p.user?.email ?? null,
+    productsCount: p._count?.products ?? 0,
+    salesCount: p._count?.salesReceived ?? 0,
+  })
 
-  // personalsWithSaleTotal: todos os personais com ao menos 1 venda histórica (_count.salesReceived)
+  const personalsWithProductList: PersonalRow[] = allPersonals
+    .filter(p => (p._count?.products ?? 0) > 0)
+    .map(toPersonalRow)
+  const personalsWithProduct = personalsWithProductList.length
+
   const personalsWithSaleTotal = allPersonals.filter(p => (p._count?.salesReceived ?? 0) > 0).length
 
   // personalsWithSale no período: personais únicos nas purchases do período selecionado
   const personalsWithSale = Object.keys(personalSalesMap).length
+
+  // Lista de personais com venda no período (do personalSalesMap, com detalhes)
+  const personalsWithSaleList: PersonalRow[] = Object.entries(personalSalesMap).map(([pid, s]) => {
+    const found = allPersonals.find(p => p.id === pid)
+    return {
+      personalId: pid,
+      personalName: s.name,
+      email: found?.user?.email ?? null,
+      productsCount: found?._count?.products ?? 0,
+      salesCount: s.completed + s.scheduled + s.cancelled,
+    }
+  })
+
+  // Todas as compras do período para modais de totais
+  const allPurchasesInPeriod: Purchase[] = rawPurchases.map(p => ({
+    id: p.id ?? '',
+    studentName: p.student?.name ?? null,
+    personalName: p.personal?.name ?? null,
+    amount: Number(p.totalAmount ?? 0),
+    status: p.status ?? 'UNKNOWN',
+    createdAt: p.createdAt ?? null,
+    paymentMethod: p.paymentMethod ?? p.billingType ?? null,
+    planName: p.originalProduct?.name ?? null,
+  }))
 
   // --- Top Personais no período ---
   const topPersonals: TopPersonal[] = Object.entries(personalSalesMap)
@@ -291,6 +324,9 @@ export async function GET(req: NextRequest) {
     personalsWithProduct,
     personalsWithSale,
     personalsWithSaleTotal,
+    personalsWithProductList,
+    personalsWithSaleList,
+    allPurchasesInPeriod,
     topPersonals,
     conversionRate,
     errors,

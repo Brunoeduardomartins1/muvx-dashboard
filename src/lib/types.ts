@@ -9,6 +9,14 @@ export interface Purchase {
   planName: string | null
 }
 
+export interface PersonalRow {
+  personalId: string
+  personalName: string
+  email: string | null
+  productsCount: number
+  salesCount: number       // histórico total (_count.salesReceived)
+}
+
 export interface TopPersonal {
   personalId: string
   personalName: string
@@ -57,6 +65,11 @@ export interface MetricsResponse {
   personalsWithProduct: number      // personais com ao menos 1 produto (histórico total)
   personalsWithSale: number         // personais com venda no período selecionado
   personalsWithSaleTotal: number    // personais com ao menos 1 venda histórica (total geral)
+
+  // Listas para drill-down
+  personalsWithProductList: PersonalRow[]   // personais que têm produto
+  personalsWithSaleList: PersonalRow[]      // personais que venderam no período (do personalSalesMap)
+  allPurchasesInPeriod: Purchase[]          // todas as compras do período (para modais de totais)
 
   // Top personais
   topPersonals: TopPersonal[]

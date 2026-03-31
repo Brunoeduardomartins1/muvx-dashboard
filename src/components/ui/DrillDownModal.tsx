@@ -2,30 +2,41 @@
 
 import { useEffect } from 'react'
 import { X } from 'lucide-react'
-import type { Purchase } from '@/lib/types'
-import { fmtBRL, fmtDate, PAYMENT_METHOD_LABELS } from '@/lib/utils'
+import type { Purchase, PersonalRow } from '@/lib/types'
+import { fmtBRL, fmtDate, fmtNum, PAYMENT_METHOD_LABELS } from '@/lib/utils'
 import { StatusBadge } from '@/components/ui/Badge'
 
-interface Props {
+interface PurchasesModal {
+  kind: 'purchases'
   title: string
   subtitle?: string
-  purchases: Purchase[]
-  onClose: () => void
+  items: Purchase[]
 }
 
-export function DrillDownModal({ title, subtitle, purchases, onClose }: Props) {
-  // Fecha com ESC
+interface PersonalsModal {
+  kind: 'personals'
+  title: string
+  subtitle?: string
+  items: PersonalRow[]
+}
+
+type Props = (PurchasesModal | PersonalsModal) & { onClose: () => void }
+
+export function DrillDownModal(props: Props) {
+  const { title, subtitle, onClose } = props
+
   useEffect(() => {
     const handler = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose() }
     document.addEventListener('keydown', handler)
     return () => document.removeEventListener('keydown', handler)
   }, [onClose])
 
-  // Impede scroll do body enquanto modal aberto
   useEffect(() => {
     document.body.style.overflow = 'hidden'
     return () => { document.body.style.overflow = '' }
   }, [])
+
+  const count = props.items.length
 
   return (
     <div
@@ -40,12 +51,8 @@ export function DrillDownModal({ title, subtitle, purchases, onClose }: Props) {
         {/* Header */}
         <div className="flex items-center justify-between px-8 py-5 flex-shrink-0" style={{ borderBottom: '1px solid var(--border-color)' }}>
           <div>
-            <h2 className="font-grotesk font-700 text-base" style={{ color: 'var(--text-primary)' }}>
-              {title}
-            </h2>
-            {subtitle && (
-              <p className="text-xs font-sans mt-0.5" style={{ color: 'var(--text-muted)' }}>{subtitle}</p>
-            )}
+            <h2 className="font-grotesk font-700 text-base" style={{ color: 'var(--text-primary)' }}>{title}</h2>
+            {subtitle && <p className="text-xs font-sans mt-0.5" style={{ color: 'var(--text-muted)' }}>{subtitle}</p>}
           </div>
           <button
             onClick={onClose}
@@ -60,62 +67,21 @@ export function DrillDownModal({ title, subtitle, purchases, onClose }: Props) {
 
         {/* Body */}
         <div className="overflow-y-auto flex-1">
-          {purchases.length === 0 ? (
+          {count === 0 ? (
             <div className="px-8 py-12 text-center">
               <p className="text-sm font-sans" style={{ color: 'var(--text-muted)' }}>Nenhum registro encontrado.</p>
             </div>
+          ) : props.kind === 'purchases' ? (
+            <PurchasesTable items={props.items} />
           ) : (
-            <table className="w-full">
-              <thead className="sticky top-0" style={{ backgroundColor: 'var(--bg-card)' }}>
-                <tr style={{ borderBottom: '1px solid var(--border-color)' }}>
-                  {['Aluno', 'Personal', 'Plano', 'Valor', 'Status', 'Método', 'Data'].map(col => (
-                    <th key={col} className="px-6 py-3 text-left text-xs font-sans font-600 uppercase tracking-widest" style={{ color: 'var(--text-muted)' }}>
-                      {col}
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {purchases.map(p => (
-                  <tr
-                    key={p.id}
-                    className="transition-colors duration-150"
-                    style={{ borderBottom: '1px solid var(--border-color)' }}
-                    onMouseEnter={e => (e.currentTarget.style.backgroundColor = 'var(--bg-card-dark)')}
-                    onMouseLeave={e => (e.currentTarget.style.backgroundColor = 'transparent')}
-                  >
-                    <td className="px-6 py-3.5 text-sm font-sans font-500 max-w-[130px] truncate" style={{ color: 'var(--text-primary)' }} title={p.studentName ?? undefined}>
-                      {p.studentName ?? '—'}
-                    </td>
-                    <td className="px-6 py-3.5 text-sm font-sans max-w-[130px] truncate" style={{ color: 'var(--text-secondary)' }} title={p.personalName ?? undefined}>
-                      {p.personalName ?? '—'}
-                    </td>
-                    <td className="px-6 py-3.5 text-sm font-sans max-w-[130px] truncate" style={{ color: 'var(--text-secondary)' }} title={p.planName ?? undefined}>
-                      {p.planName ?? '—'}
-                    </td>
-                    <td className="px-6 py-3.5 text-sm font-grotesk font-600 whitespace-nowrap" style={{ color: 'var(--text-primary)' }}>
-                      {fmtBRL(p.amount)}
-                    </td>
-                    <td className="px-6 py-3.5">
-                      <StatusBadge status={p.status} />
-                    </td>
-                    <td className="px-6 py-3.5 text-sm font-sans" style={{ color: 'var(--text-secondary)' }}>
-                      {p.paymentMethod ? (PAYMENT_METHOD_LABELS[p.paymentMethod] ?? p.paymentMethod) : '—'}
-                    </td>
-                    <td className="px-6 py-3.5 text-sm font-sans whitespace-nowrap" style={{ color: 'var(--text-muted)' }}>
-                      {fmtDate(p.createdAt)}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+            <PersonalsTable items={props.items} />
           )}
         </div>
 
         {/* Footer */}
         <div className="px-8 py-4 flex-shrink-0 flex items-center justify-between" style={{ borderTop: '1px solid var(--border-color)' }}>
           <span className="text-xs font-sans" style={{ color: 'var(--text-muted)' }}>
-            {purchases.length} {purchases.length === 1 ? 'registro' : 'registros'}
+            {count} {count === 1 ? 'registro' : 'registros'}
           </span>
           <button
             onClick={onClose}
@@ -127,5 +93,97 @@ export function DrillDownModal({ title, subtitle, purchases, onClose }: Props) {
         </div>
       </div>
     </div>
+  )
+}
+
+function PurchasesTable({ items }: { items: Purchase[] }) {
+  return (
+    <table className="w-full">
+      <thead className="sticky top-0" style={{ backgroundColor: 'var(--bg-card)' }}>
+        <tr style={{ borderBottom: '1px solid var(--border-color)' }}>
+          {['Aluno', 'Personal', 'Plano', 'Valor', 'Status', 'Método', 'Data'].map(col => (
+            <th key={col} className="px-6 py-3 text-left text-xs font-sans font-600 uppercase tracking-widest" style={{ color: 'var(--text-muted)' }}>
+              {col}
+            </th>
+          ))}
+        </tr>
+      </thead>
+      <tbody>
+        {items.map(p => (
+          <tr
+            key={p.id}
+            className="transition-colors duration-150"
+            style={{ borderBottom: '1px solid var(--border-color)' }}
+            onMouseEnter={e => (e.currentTarget.style.backgroundColor = 'var(--bg-card-dark)')}
+            onMouseLeave={e => (e.currentTarget.style.backgroundColor = 'transparent')}
+          >
+            <td className="px-6 py-3.5 text-sm font-sans font-500 max-w-[130px] truncate" style={{ color: 'var(--text-primary)' }} title={p.studentName ?? undefined}>
+              {p.studentName ?? '—'}
+            </td>
+            <td className="px-6 py-3.5 text-sm font-sans max-w-[130px] truncate" style={{ color: 'var(--text-secondary)' }} title={p.personalName ?? undefined}>
+              {p.personalName ?? '—'}
+            </td>
+            <td className="px-6 py-3.5 text-sm font-sans max-w-[130px] truncate" style={{ color: 'var(--text-secondary)' }} title={p.planName ?? undefined}>
+              {p.planName ?? '—'}
+            </td>
+            <td className="px-6 py-3.5 text-sm font-grotesk font-600 whitespace-nowrap" style={{ color: 'var(--text-primary)' }}>
+              {fmtBRL(p.amount)}
+            </td>
+            <td className="px-6 py-3.5">
+              <StatusBadge status={p.status} />
+            </td>
+            <td className="px-6 py-3.5 text-sm font-sans" style={{ color: 'var(--text-secondary)' }}>
+              {p.paymentMethod ? (PAYMENT_METHOD_LABELS[p.paymentMethod] ?? p.paymentMethod) : '—'}
+            </td>
+            <td className="px-6 py-3.5 text-sm font-sans whitespace-nowrap" style={{ color: 'var(--text-muted)' }}>
+              {fmtDate(p.createdAt)}
+            </td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  )
+}
+
+function PersonalsTable({ items }: { items: PersonalRow[] }) {
+  return (
+    <table className="w-full">
+      <thead className="sticky top-0" style={{ backgroundColor: 'var(--bg-card)' }}>
+        <tr style={{ borderBottom: '1px solid var(--border-color)' }}>
+          {['#', 'Personal', 'E-mail', 'Produtos', 'Vendas (histórico)'].map(col => (
+            <th key={col} className="px-6 py-3 text-left text-xs font-sans font-600 uppercase tracking-widest" style={{ color: 'var(--text-muted)' }}>
+              {col}
+            </th>
+          ))}
+        </tr>
+      </thead>
+      <tbody>
+        {items.map((p, i) => (
+          <tr
+            key={p.personalId}
+            className="transition-colors duration-150"
+            style={{ borderBottom: '1px solid var(--border-color)' }}
+            onMouseEnter={e => (e.currentTarget.style.backgroundColor = 'var(--bg-card-dark)')}
+            onMouseLeave={e => (e.currentTarget.style.backgroundColor = 'transparent')}
+          >
+            <td className="px-6 py-3.5 text-sm font-grotesk font-700" style={{ color: 'var(--text-muted)' }}>
+              {i + 1}
+            </td>
+            <td className="px-6 py-3.5 text-sm font-sans font-500 max-w-[160px] truncate" style={{ color: 'var(--text-primary)' }} title={p.personalName}>
+              {p.personalName}
+            </td>
+            <td className="px-6 py-3.5 text-sm font-sans max-w-[180px] truncate" style={{ color: 'var(--text-secondary)' }} title={p.email ?? undefined}>
+              {p.email ?? '—'}
+            </td>
+            <td className="px-6 py-3.5 text-sm font-grotesk font-600" style={{ color: '#08F887' }}>
+              {fmtNum(p.productsCount)}
+            </td>
+            <td className="px-6 py-3.5 text-sm font-grotesk font-600" style={{ color: 'var(--text-primary)' }}>
+              {fmtNum(p.salesCount)}
+            </td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
   )
 }

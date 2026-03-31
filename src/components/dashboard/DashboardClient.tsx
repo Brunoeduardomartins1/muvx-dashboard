@@ -16,13 +16,11 @@ import { TopPersonais } from './TopPersonais'
 import { MuvxRevenueCard } from './MuvxRevenueCard'
 import { StatCardSkeleton } from '@/components/ui/Skeleton'
 import { DrillDownModal } from '@/components/ui/DrillDownModal'
-import type { Purchase } from '@/lib/types'
+import type { Purchase, PersonalRow } from '@/lib/types'
 
-interface ModalState {
-  title: string
-  subtitle?: string
-  purchases: Purchase[]
-}
+type ModalState =
+  | { kind: 'purchases'; title: string; subtitle?: string; items: Purchase[] }
+  | { kind: 'personals'; title: string; subtitle?: string; items: PersonalRow[] }
 
 const REVENUE_GOAL = Number(process.env.NEXT_PUBLIC_MUVX_GOAL ?? 50000)
 
@@ -37,10 +35,18 @@ export function DashboardClient() {
 
   const showSkeletons = isLoading && !data
 
-  function openModal(title: string, subtitle: string, statuses: string[]) {
+  function openPurchasesModal(title: string, subtitle: string, statuses: string[]) {
     const detail = data?.purchasesByStatusDetail ?? {}
-    const purchases = statuses.flatMap(s => detail[s] ?? [])
-    setModal({ title, subtitle, purchases })
+    const items = statuses.flatMap(s => detail[s] ?? [])
+    setModal({ kind: 'purchases', title, subtitle, items })
+  }
+
+  function openAllPurchasesModal(title: string, subtitle: string) {
+    setModal({ kind: 'purchases', title, subtitle, items: data?.allPurchasesInPeriod ?? [] })
+  }
+
+  function openPersonalsModal(title: string, subtitle: string, items: PersonalRow[]) {
+    setModal({ kind: 'personals', title, subtitle, items })
   }
 
   return (
@@ -97,6 +103,7 @@ export function DashboardClient() {
                 value={data?.totalStudents ?? 0}
                 delta={data?.studentsGrowthLastMonth}
                 icon={<Users size={16} />}
+                onClick={() => openAllPurchasesModal('Compras de Alunos', 'Todas as compras no período — visão por aluno')}
               />
               <StatCard
                 dark
@@ -105,6 +112,7 @@ export function DashboardClient() {
                 delta={data?.personalsGrowthLastMonth}
                 icon={<UserCheck size={16} />}
                 sublabel={`${data?.crefPending ?? 0} CREF pendentes`}
+                onClick={() => openPersonalsModal('Total de Personais', 'Personais com ao menos 1 produto cadastrado', data?.personalsWithProductList ?? [])}
               />
               <StatCard
                 dark
@@ -113,6 +121,7 @@ export function DashboardClient() {
                 delta={data?.usersGrowthLastMonth}
                 icon={<Users size={16} />}
                 sublabel={`${data?.activeUsers ?? 0} ativos · ${data?.inactiveUsers ?? 0} inativos`}
+                onClick={() => openAllPurchasesModal('Todas as Compras', 'Total de compras no período selecionado')}
               />
             </>
           )}
@@ -129,12 +138,14 @@ export function DashboardClient() {
                 value={data?.personalsWithProduct ?? 0}
                 icon={<Package size={16} />}
                 sublabel={`de ${data?.totalPersonals ?? 0} personais na plataforma`}
+                onClick={() => openPersonalsModal('Personais com Produto', 'Personais com ao menos 1 produto cadastrado', data?.personalsWithProductList ?? [])}
               />
               <StatCard
                 label="Personais com Venda"
                 value={data?.personalsWithSale ?? 0}
                 icon={<ShoppingCart size={16} />}
                 sublabel={`no período · ${data?.personalsWithSaleTotal ?? 0} total histórico`}
+                onClick={() => openPersonalsModal('Personais com Venda no Período', 'Personais que realizaram ao menos 1 venda no período selecionado', data?.personalsWithSaleList ?? [])}
               />
               <StatCard
                 label="Conversão de Personais"
@@ -142,6 +153,7 @@ export function DashboardClient() {
                 format="number"
                 icon={<Percent size={16} />}
                 sublabel={`${data?.personalsWithSale ?? 0} venderam no período · ${data?.personalsWithSaleTotal ?? 0} total histórico`}
+                onClick={() => openPersonalsModal('Conversão — Personais que Venderam', 'Personais com venda no período vs total da plataforma', data?.personalsWithSaleList ?? [])}
               />
             </>
           )}
@@ -159,7 +171,7 @@ export function DashboardClient() {
                 value={data?.completedSales ?? 0}
                 icon={<TrendingUp size={16} />}
                 sublabel={`${data?.purchasesTotal ?? 0} total de compras`}
-                onClick={() => openModal('Vendas Realizadas', 'Compras com status Concluído', ['COMPLETED'])}
+                onClick={() => openPurchasesModal('Vendas Realizadas', 'Compras com status Concluído', ['COMPLETED'])}
               />
               <StatCard
                 dark
@@ -168,14 +180,14 @@ export function DashboardClient() {
                 format="currency"
                 icon={<Clock size={16} />}
                 sublabel={`${data?.scheduledSales ?? 0} vendas agendadas`}
-                onClick={() => openModal('Aguardando Pagamento', 'Compras agendadas para cobrança futura', ['SCHEDULED'])}
+                onClick={() => openPurchasesModal('Aguardando Pagamento', 'Compras agendadas para cobrança futura', ['SCHEDULED'])}
               />
               <StatCard
                 dark
                 label="Vendas Canceladas"
                 value={data?.cancelledSales ?? 0}
                 icon={<XCircle size={16} />}
-                onClick={() => openModal('Vendas Canceladas', 'Canceladas pelo personal, aluno ou sistema', ['CANCELLED', 'CANCELLED_BY_STUDENT', 'CANCELLED_BY_PERSONAL'])}
+                onClick={() => openPurchasesModal('Vendas Canceladas', 'Canceladas pelo personal, aluno ou sistema', ['CANCELLED', 'CANCELLED_BY_STUDENT', 'CANCELLED_BY_PERSONAL'])}
               />
               <StatCard
                 dark
@@ -184,7 +196,7 @@ export function DashboardClient() {
                 format="currency"
                 icon={<DollarSign size={16} />}
                 sublabel={`${data?.completedSales ?? 0} vendas concluídas`}
-                onClick={() => openModal('Vendas Transacionadas', 'Todas as compras concluídas no período', ['COMPLETED'])}
+                onClick={() => openPurchasesModal('Vendas Transacionadas', 'Todas as compras concluídas no período', ['COMPLETED'])}
               />
             </>
           )}
@@ -243,9 +255,7 @@ export function DashboardClient() {
 
       {modal && (
         <DrillDownModal
-          title={modal.title}
-          subtitle={modal.subtitle}
-          purchases={modal.purchases}
+          {...modal}
           onClose={() => setModal(null)}
         />
       )}
