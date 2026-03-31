@@ -23,57 +23,79 @@ export function StatCard({
   deltaLabel,
   dark = false,
   format = 'number',
-  suffix,
   icon,
   sublabel,
 }: StatCardProps) {
   const animated = useCountUp(value, 800)
 
-  const bg = dark ? 'bg-dark-card' : 'bg-surface border border-border'
-  const labelColor = dark ? 'text-[#83898F]' : 'text-text-muted'
-  const valueColor = dark ? 'text-green' : 'text-text'
-
   const deltaPositive = delta !== undefined && delta > 0
   const deltaNegative = delta !== undefined && delta < 0
-  const deltaColor = deltaPositive
-    ? 'text-green'
-    : deltaNegative
-    ? 'text-status-error'
-    : 'text-text-muted'
-
+  const deltaColor = deltaPositive ? '#08F887' : deltaNegative ? '#EF4444' : 'var(--text-muted)'
   const DeltaIcon = deltaPositive ? TrendingUp : deltaNegative ? TrendingDown : Minus
 
+  if (dark) {
+    return (
+      <div className="card-dark rounded-card p-8">
+        <div className="flex items-start justify-between mb-5">
+          <span
+            className="text-xs font-sans font-600 uppercase tracking-widest"
+            style={{ color: '#6B7280' }}
+          >
+            {label}
+          </span>
+          {icon && (
+            <div className="w-9 h-9 rounded-xl flex items-center justify-center" style={{ backgroundColor: 'rgba(8,248,135,0.1)', color: '#08F887' }}>
+              {icon}
+            </div>
+          )}
+        </div>
+
+        <div className="font-grotesk font-700 text-4xl leading-none mb-2" style={{ color: '#08F887' }}>
+          {format === 'currency' ? fmtBRL(animated) : fmtNum(animated)}
+        </div>
+
+        {sublabel && (
+          <p className="text-xs font-sans mb-2" style={{ color: '#6B7280' }}>{sublabel}</p>
+        )}
+
+        {delta !== undefined && (
+          <div className="flex items-center gap-1 text-xs font-sans font-600" style={{ color: deltaColor }}>
+            <DeltaIcon size={12} />
+            <span>{delta > 0 ? '+' : ''}{fmtNum(delta)} {deltaLabel ?? 'vs mês anterior'}</span>
+          </div>
+        )}
+      </div>
+    )
+  }
+
   return (
-    <div className={`rounded-card p-8 card-hover ${bg}`}>
-      <div className="flex items-start justify-between mb-4">
-        <span className={`text-xs font-sans font-600 uppercase tracking-widest ${labelColor}`}>
+    <div className="card rounded-card p-8">
+      <div className="flex items-start justify-between mb-5">
+        <span
+          className="text-xs font-sans font-600 uppercase tracking-widest"
+          style={{ color: 'var(--text-muted)' }}
+        >
           {label}
         </span>
         {icon && (
-          <div className="w-9 h-9 rounded-xl flex items-center justify-center bg-green/10 text-green">
+          <div className="w-9 h-9 rounded-xl flex items-center justify-center" style={{ backgroundColor: 'rgba(8,248,135,0.1)', color: '#08F887' }}>
             {icon}
           </div>
         )}
       </div>
 
-      <div className={`font-grotesk font-700 text-4xl leading-none mb-2 ${valueColor}`}>
-        {format === 'currency'
-          ? fmtBRL(animated)
-          : fmtNum(animated)}
-        {suffix && <span className="text-2xl ml-1">{suffix}</span>}
+      <div className="font-grotesk font-700 text-4xl leading-none mb-2" style={{ color: 'var(--text-primary)' }}>
+        {format === 'currency' ? fmtBRL(animated) : fmtNum(animated)}
       </div>
 
       {sublabel && (
-        <p className={`text-xs font-sans mb-2 ${labelColor}`}>{sublabel}</p>
+        <p className="text-xs font-sans mb-2" style={{ color: 'var(--text-muted)' }}>{sublabel}</p>
       )}
 
       {delta !== undefined && (
-        <div className={`flex items-center gap-1 text-xs font-sans font-600 ${deltaColor}`}>
+        <div className="flex items-center gap-1 text-xs font-sans font-600" style={{ color: deltaColor }}>
           <DeltaIcon size={12} />
-          <span>
-            {delta > 0 ? '+' : ''}
-            {fmtNum(delta)} {deltaLabel ?? 'vs mês anterior'}
-          </span>
+          <span>{delta > 0 ? '+' : ''}{fmtNum(delta)} {deltaLabel ?? 'vs mês anterior'}</span>
         </div>
       )}
     </div>

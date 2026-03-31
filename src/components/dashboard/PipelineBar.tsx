@@ -1,6 +1,7 @@
 'use client'
 
 import { STATUS_LABELS, STATUS_COLORS, fmtNum } from '@/lib/utils'
+import { Skeleton } from '@/components/ui/Skeleton'
 
 interface Props {
   purchasesByStatus: Record<string, number>
@@ -9,15 +10,13 @@ interface Props {
   isLoading?: boolean
 }
 
-import { Skeleton } from '@/components/ui/Skeleton'
-
 function PipelineSkeleton() {
   return (
-    <div className="rounded-card p-8 bg-surface border border-border">
+    <div className="card rounded-card p-8">
       <Skeleton className="h-5 w-44 mb-6" />
       <Skeleton className="h-8 w-full rounded-pill mb-4" />
       <div className="flex gap-4 flex-wrap">
-        {[1,2,3,4].map(i => <Skeleton key={i} className="h-4 w-24" />)}
+        {[1, 2, 3, 4].map(i => <Skeleton key={i} className="h-4 w-24" />)}
       </div>
     </div>
   )
@@ -27,7 +26,6 @@ export function PipelineBar({ purchasesByStatus, totalPersonals, crefPending, is
   if (isLoading) return <PipelineSkeleton />
 
   const total = Object.values(purchasesByStatus).reduce((a, b) => a + b, 0)
-
   const segments = Object.entries(purchasesByStatus)
     .map(([status, count]) => ({
       status,
@@ -40,38 +38,52 @@ export function PipelineBar({ purchasesByStatus, totalPersonals, crefPending, is
 
   if (segments.length === 0) {
     return (
-      <div className="rounded-card p-8 bg-surface border border-border">
-        <h3 className="font-grotesk font-700 text-base text-text mb-4">Pipeline de Assinaturas</h3>
-        <p className="text-sm font-sans text-text-muted">Sem dados no período selecionado.</p>
+      <div className="card rounded-card p-8">
+        <h3 className="font-grotesk font-700 text-base mb-4" style={{ color: 'var(--text-primary)' }}>
+          Pipeline de Assinaturas
+        </h3>
+        <p className="text-sm font-sans" style={{ color: 'var(--text-muted)' }}>
+          Sem dados no período selecionado.
+        </p>
       </div>
     )
   }
 
   return (
-    <div className="rounded-card p-8 bg-surface border border-border card-hover">
+    <div className="card rounded-card p-8">
       <div className="flex items-start justify-between mb-6">
         <div>
-          <h3 className="font-grotesk font-700 text-base text-text">Pipeline de Assinaturas</h3>
-          <p className="text-xs font-sans text-text-muted mt-0.5">
+          <h3 className="font-grotesk font-700 text-base" style={{ color: 'var(--text-primary)' }}>
+            Pipeline de Assinaturas
+          </h3>
+          <p className="text-xs font-sans mt-0.5" style={{ color: 'var(--text-muted)' }}>
             {fmtNum(total)} compras no período
           </p>
         </div>
         <div className="flex gap-4">
           <div className="text-right">
-            <p className="font-grotesk font-700 text-xl text-text">{fmtNum(totalPersonals)}</p>
-            <p className="text-xs font-sans text-text-muted uppercase tracking-wide">Personais</p>
+            <p className="font-grotesk font-700 text-xl" style={{ color: 'var(--text-primary)' }}>
+              {fmtNum(totalPersonals)}
+            </p>
+            <p className="text-xs font-sans uppercase tracking-wide" style={{ color: 'var(--text-muted)' }}>
+              Personais
+            </p>
           </div>
           {crefPending > 0 && (
             <div className="text-right">
-              <p className="font-grotesk font-700 text-xl text-status-processing">{fmtNum(crefPending)}</p>
-              <p className="text-xs font-sans text-text-muted uppercase tracking-wide">CREF Pend.</p>
+              <p className="font-grotesk font-700 text-xl" style={{ color: '#F59E0B' }}>
+                {fmtNum(crefPending)}
+              </p>
+              <p className="text-xs font-sans uppercase tracking-wide" style={{ color: 'var(--text-muted)' }}>
+                CREF Pend.
+              </p>
             </div>
           )}
         </div>
       </div>
 
-      {/* Barra horizontal segmentada */}
-      <div className="flex rounded-pill overflow-hidden h-8 mb-4">
+      {/* Barra horizontal */}
+      <div className="flex rounded-pill overflow-hidden h-8 mb-5">
         {segments.map((seg) => (
           <div
             key={seg.status}
@@ -81,27 +93,24 @@ export function PipelineBar({ purchasesByStatus, totalPersonals, crefPending, is
               backgroundColor: seg.color,
               opacity: 0.85,
               minWidth: seg.pct > 0 ? 4 : 0,
+              transition: 'width 500ms ease',
             }}
-            className="transition-all duration-500"
           />
         ))}
       </div>
 
       {/* Legenda */}
-      <div className="flex flex-wrap gap-x-4 gap-y-2">
+      <div className="flex flex-wrap gap-x-5 gap-y-2">
         {segments.map((seg) => (
           <div key={seg.status} className="flex items-center gap-1.5">
-            <span
-              className="w-2.5 h-2.5 rounded-full flex-shrink-0"
-              style={{ backgroundColor: seg.color }}
-            />
-            <span className="text-xs font-sans text-text-secondary">
+            <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: seg.color }} />
+            <span className="text-xs font-sans" style={{ color: 'var(--text-secondary)' }}>
               {seg.label}
             </span>
-            <span className="text-xs font-sans font-600 text-text">
+            <span className="text-xs font-sans font-600" style={{ color: 'var(--text-primary)' }}>
               {fmtNum(seg.count)}
             </span>
-            <span className="text-xs font-sans text-text-muted">
+            <span className="text-xs font-sans" style={{ color: 'var(--text-muted)' }}>
               ({seg.pct.toFixed(0)}%)
             </span>
           </div>

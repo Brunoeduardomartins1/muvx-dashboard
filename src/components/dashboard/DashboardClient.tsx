@@ -16,37 +16,42 @@ const REVENUE_GOAL = Number(process.env.NEXT_PUBLIC_MUVX_GOAL ?? 50000)
 export function DashboardClient() {
   const { data, isLoading, isError, lastUpdated, refresh } = useAutoRefresh()
 
+  const showSkeletons = isLoading && !data
+
   return (
-    <div className="min-h-screen bg-background">
-      <Header
-        lastUpdated={lastUpdated}
-        isLoading={isLoading}
-        onRefresh={refresh}
-      />
+    <div className="min-h-screen transition-colors duration-250" style={{ backgroundColor: 'var(--bg-page)' }}>
+      <Header lastUpdated={lastUpdated} isLoading={isLoading} onRefresh={refresh} />
 
       <main className="max-w-[1440px] mx-auto px-6 py-8 space-y-6">
 
-        {/* Faixa de erro discreto se API falhar */}
+        {/* Erro de conexão */}
         {isError && !data && (
-          <div className="rounded-xl border border-status-error/20 bg-status-error/5 px-6 py-3 flex items-center gap-2">
-            <span className="w-2 h-2 rounded-full bg-status-error flex-shrink-0" />
-            <p className="text-sm font-sans text-status-error">
-              Não foi possível conectar à API MUVX. Verifique as credenciais no .env.local.
+          <div
+            className="rounded-xl px-6 py-3 flex items-center gap-2"
+            style={{ border: '1px solid rgba(239,68,68,0.2)', backgroundColor: 'rgba(239,68,68,0.05)' }}
+          >
+            <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: '#EF4444' }} />
+            <p className="text-sm font-sans" style={{ color: '#EF4444' }}>
+              Não foi possível conectar à API MUVX. Verifique as variáveis de ambiente.
             </p>
           </div>
         )}
 
+        {/* Avisos de endpoints parcialmente indisponíveis */}
         {data?.errors && data.errors.length > 0 && (
-          <div className="rounded-xl border border-status-processing/20 bg-status-processing/5 px-6 py-3">
-            <p className="text-xs font-sans text-status-processing">
-              Alguns dados podem estar incompletos: {data.errors.join(' · ')}
+          <div
+            className="rounded-xl px-6 py-3"
+            style={{ border: '1px solid rgba(245,158,11,0.2)', backgroundColor: 'rgba(245,158,11,0.05)' }}
+          >
+            <p className="text-xs font-sans" style={{ color: '#F59E0B' }}>
+              Dados parciais: {data.errors.join(' · ')}
             </p>
           </div>
         )}
 
-        {/* Row 1 — Stat Cards */}
+        {/* Row 1 — KPIs */}
         <section className="grid grid-cols-1 md:grid-cols-3 gap-6" aria-label="KPIs principais">
-          {isLoading && !data ? (
+          {showSkeletons ? (
             <>
               <StatCardSkeleton dark />
               <StatCardSkeleton dark />
@@ -86,16 +91,16 @@ export function DashboardClient() {
         <section className="grid grid-cols-1 lg:grid-cols-3 gap-6" aria-label="Análises">
           <BarChartComponent
             purchasesByStatus={data?.purchasesByStatus ?? {}}
-            isLoading={isLoading && !data}
+            isLoading={showSkeletons}
           />
           <ConversionRing
             rate={data?.conversionRate ?? 0}
-            isLoading={isLoading && !data}
+            isLoading={showSkeletons}
           />
           <GoalGauge
             revenue={data?.revenueInPeriod ?? 0}
             goal={REVENUE_GOAL}
-            isLoading={isLoading && !data}
+            isLoading={showSkeletons}
           />
         </section>
 
@@ -105,19 +110,19 @@ export function DashboardClient() {
             purchasesByStatus={data?.purchasesByStatus ?? {}}
             totalPersonals={data?.totalPersonals ?? 0}
             crefPending={data?.crefPending ?? 0}
-            isLoading={isLoading && !data}
+            isLoading={showSkeletons}
           />
           <DataTable
             purchases={data?.recentPurchases ?? []}
-            isLoading={isLoading && !data}
+            isLoading={showSkeletons}
           />
         </section>
 
       </main>
 
       <footer className="text-center py-6">
-        <p className="text-xs font-sans text-text-muted">
-          MUVX Dashboard · Dados atualizados automaticamente a cada hora
+        <p className="text-xs font-sans" style={{ color: 'var(--text-muted)' }}>
+          MUVX Dashboard · Atualização automática a cada hora
         </p>
       </footer>
     </div>

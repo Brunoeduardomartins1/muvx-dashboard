@@ -10,11 +10,7 @@ interface Props {
 
 export default function GoalGaugeInner({ revenue, goal }: Props) {
   const pct = goal > 0 ? Math.min((revenue / goal) * 100, 100) : 0
-  const data = [
-    { value: pct },
-    { value: 100 - pct },
-  ]
-
+  const data = [{ value: pct }, { value: 100 - pct }]
   const color = pct >= 100 ? '#08F887' : pct >= 70 ? '#06D474' : pct >= 40 ? '#F59E0B' : '#EF4444'
 
   return (
@@ -23,25 +19,22 @@ export default function GoalGaugeInner({ revenue, goal }: Props) {
         <PieChart>
           <Pie
             data={data}
-            cx="50%"
-            cy="65%"
-            innerRadius="55%"
-            outerRadius="75%"
-            startAngle={180}
-            endAngle={0}
+            cx="50%" cy="65%"
+            innerRadius="55%" outerRadius="75%"
+            startAngle={180} endAngle={0}
             dataKey="value"
             strokeWidth={0}
           >
             <Cell fill={color} />
-            <Cell fill="#E5E7EB" />
+            <Cell fill="var(--border-color)" />
           </Pie>
         </PieChart>
       </ResponsiveContainer>
-      <div className="absolute inset-0 flex flex-col items-center justify-end pb-4 pointer-events-none">
+      <div className="absolute inset-0 flex flex-col items-center justify-end pb-6 pointer-events-none">
         <span className="font-grotesk font-700 text-2xl leading-none" style={{ color }}>
           {fmtBRL(revenue)}
         </span>
-        <span className="text-xs font-sans text-text-muted mt-1">
+        <span className="text-xs font-sans mt-1" style={{ color: 'var(--text-muted)' }}>
           {fmtPct(pct)} da meta ({fmtBRL(goal)})
         </span>
       </div>

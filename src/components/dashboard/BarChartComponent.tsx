@@ -17,12 +17,19 @@ export function BarChartComponent({ purchasesByStatus, isLoading }: Props) {
   if (isLoading) return <ChartSkeleton />
 
   return (
-    <div className="rounded-card p-8 bg-surface border border-border card-hover h-full">
+    <div
+      className="card rounded-card p-8 h-full"
+      style={{ minHeight: 300 }}
+    >
       <div className="mb-4">
-        <h3 className="font-grotesk font-700 text-base text-text">Status de Compras</h3>
-        <p className="text-xs font-sans text-text-muted mt-0.5">Distribuição por status no período</p>
+        <h3 className="font-grotesk font-700 text-base" style={{ color: 'var(--text-primary)' }}>
+          Status de Compras
+        </h3>
+        <p className="text-xs font-sans mt-0.5" style={{ color: 'var(--text-muted)' }}>
+          Distribuição por status no período
+        </p>
       </div>
-      <div style={{ height: 200 }}>
+      <div style={{ height: 220 }}>
         <BarChartInner purchasesByStatus={purchasesByStatus} />
       </div>
     </div>

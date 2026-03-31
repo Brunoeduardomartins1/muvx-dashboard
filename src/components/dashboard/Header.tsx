@@ -1,8 +1,10 @@
 'use client'
 
-import { RefreshCw } from 'lucide-react'
+import Image from 'next/image'
+import { RefreshCw, Sun, Moon } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { fmtAgo } from '@/lib/utils'
+import { useTheme } from '@/hooks/useTheme'
 
 interface HeaderProps {
   lastUpdated: string | null
@@ -10,39 +12,9 @@ interface HeaderProps {
   onRefresh: () => void
 }
 
-export function MuvxLogo() {
-  return (
-    <svg viewBox="0 0 80 28" fill="none" xmlns="http://www.w3.org/2000/svg" className="h-7 w-auto">
-      <text
-        x="0"
-        y="22"
-        fontFamily="Space Grotesk, sans-serif"
-        fontWeight="700"
-        fontSize="24"
-        fill="#111827"
-        letterSpacing="-0.5"
-      >
-        MUV
-      </text>
-      <text
-        x="54"
-        y="22"
-        fontFamily="Space Grotesk, sans-serif"
-        fontWeight="700"
-        fontSize="24"
-        fill="#08F887"
-        letterSpacing="-0.5"
-      >
-        X
-      </text>
-      {/* Traço diagonal característico do X */}
-      <line x1="54" y1="20" x2="76" y2="4" stroke="#08F887" strokeWidth="2" strokeLinecap="round" opacity="0.4" />
-    </svg>
-  )
-}
-
 export function Header({ lastUpdated, isLoading, onRefresh }: HeaderProps) {
   const [timeAgo, setTimeAgo] = useState<string>('—')
+  const { isDark, toggle } = useTheme()
 
   useEffect(() => {
     const update = () => setTimeAgo(fmtAgo(lastUpdated))
@@ -52,15 +24,33 @@ export function Header({ lastUpdated, isLoading, onRefresh }: HeaderProps) {
   }, [lastUpdated])
 
   return (
-    <header className="flex items-center justify-between py-6 px-8 bg-surface border-b border-border">
+    <header
+      className="flex items-center justify-between py-4 px-6 border-b transition-colors duration-250"
+      style={{
+        backgroundColor: 'var(--bg-header)',
+        borderColor: 'var(--border-color)',
+      }}
+    >
       <div className="flex items-center gap-4">
-        <MuvxLogo />
-        <div className="w-px h-6 bg-border" />
+        {/* Logo: light = secundária (escura), dark = primária (clara) */}
+        <div className="relative h-8 w-auto">
+          <Image
+            src={isDark ? '/logo-dark.png' : '/logo-light.png'}
+            alt="MUVX"
+            height={32}
+            width={120}
+            className="h-8 w-auto object-contain"
+            priority
+          />
+        </div>
+
+        <div className="w-px h-5" style={{ backgroundColor: 'var(--border-color)' }} />
+
         <div>
-          <h1 className="font-grotesk font-700 text-lg text-text leading-tight">
+          <h1 className="font-grotesk font-700 text-base leading-tight" style={{ color: 'var(--text-primary)' }}>
             Dashboard Analítico
           </h1>
-          <p className="text-xs font-sans text-text-muted uppercase tracking-widest">
+          <p className="text-xs font-sans uppercase tracking-widest" style={{ color: 'var(--text-muted)' }}>
             Métricas em Tempo Real
           </p>
         </div>
@@ -68,20 +58,29 @@ export function Header({ lastUpdated, isLoading, onRefresh }: HeaderProps) {
 
       <div className="flex items-center gap-3">
         {lastUpdated && (
-          <span className="text-xs font-sans text-text-muted">
+          <span className="text-xs font-sans hidden sm:block" style={{ color: 'var(--text-muted)' }}>
             Atualizado {timeAgo}
           </span>
         )}
+
+        {/* Toggle dark/light */}
+        <button
+          onClick={toggle}
+          className="w-9 h-9 rounded-xl flex items-center justify-center border transition-all duration-200 hover:border-green/40"
+          style={{ borderColor: 'var(--border-color)', color: 'var(--text-secondary)' }}
+          aria-label="Alternar tema"
+        >
+          {isDark ? <Sun size={15} /> : <Moon size={15} />}
+        </button>
+
         <button
           onClick={onRefresh}
           disabled={isLoading}
-          className="flex items-center gap-2 px-4 py-2 rounded-xl border border-border text-sm font-sans font-600 text-text-secondary hover:border-green/40 hover:text-green transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+          className="flex items-center gap-2 px-4 py-2 rounded-xl border text-sm font-sans font-600 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed hover:border-green/40 hover:text-green"
+          style={{ borderColor: 'var(--border-color)', color: 'var(--text-secondary)' }}
         >
-          <RefreshCw
-            size={14}
-            className={isLoading ? 'animate-spin' : ''}
-          />
-          Atualizar
+          <RefreshCw size={14} className={isLoading ? 'animate-spin' : ''} />
+          <span className="hidden sm:inline">Atualizar</span>
         </button>
       </div>
     </header>

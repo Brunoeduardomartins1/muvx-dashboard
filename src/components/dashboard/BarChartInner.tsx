@@ -1,14 +1,8 @@
 'use client'
 
 import {
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  ResponsiveContainer,
-  Cell,
+  BarChart, Bar, XAxis, YAxis, CartesianGrid,
+  Tooltip, ResponsiveContainer, Cell,
 } from 'recharts'
 import { STATUS_LABELS, STATUS_COLORS, fmtNum } from '@/lib/utils'
 
@@ -26,11 +20,11 @@ const CustomTooltip = ({ active, payload, label }: TooltipProps) => {
   if (active && payload && payload.length) {
     const status = String(label)
     return (
-      <div className="bg-dark-card border border-[#2a2a2d] rounded-xl px-4 py-3 shadow-green-sm">
-        <p className="text-xs font-sans text-[#83898F] uppercase tracking-widest mb-1">
+      <div style={{ background: '#18181B', border: '1px solid #2A2D35', borderRadius: 12, padding: '10px 16px' }}>
+        <p style={{ fontSize: 10, color: '#6B7280', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: 4 }}>
           {STATUS_LABELS[status] ?? status}
         </p>
-        <p className="font-grotesk font-700 text-green text-xl">
+        <p style={{ fontFamily: 'var(--font-space-grotesk)', fontWeight: 700, color: '#08F887', fontSize: 20 }}>
           {fmtNum(payload[0].value)}
         </p>
       </div>
@@ -51,7 +45,7 @@ export default function BarChartInner({ purchasesByStatus }: Props) {
 
   if (data.length === 0) {
     return (
-      <div className="flex items-center justify-center h-full text-text-muted text-sm font-sans">
+      <div className="flex items-center justify-center h-full text-sm font-sans" style={{ color: 'var(--text-muted)' }}>
         Sem dados no período
       </div>
     )
@@ -60,10 +54,10 @@ export default function BarChartInner({ purchasesByStatus }: Props) {
   return (
     <ResponsiveContainer width="100%" height="100%">
       <BarChart data={data} margin={{ top: 4, right: 4, left: -20, bottom: 4 }}>
-        <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" vertical={false} />
+        <CartesianGrid strokeDasharray="3 3" stroke="var(--border-color)" vertical={false} />
         <XAxis
           dataKey="label"
-          tick={{ fontSize: 10, fontFamily: 'var(--font-dm-sans)', fill: '#9CA3AF' }}
+          tick={{ fontSize: 10, fill: '#9CA3AF' }}
           axisLine={false}
           tickLine={false}
           interval={0}
@@ -72,11 +66,11 @@ export default function BarChartInner({ purchasesByStatus }: Props) {
           height={50}
         />
         <YAxis
-          tick={{ fontSize: 10, fontFamily: 'var(--font-dm-sans)', fill: '#9CA3AF' }}
+          tick={{ fontSize: 10, fill: '#9CA3AF' }}
           axisLine={false}
           tickLine={false}
         />
-        <Tooltip content={<CustomTooltip />} cursor={{ fill: 'rgba(8, 248, 135, 0.06)' }} />
+        <Tooltip content={<CustomTooltip />} cursor={{ fill: 'rgba(8,248,135,0.06)' }} />
         <Bar dataKey="count" radius={[6, 6, 0, 0]} maxBarSize={48}>
           {data.map((entry, index) => (
             <Cell key={index} fill={entry.color} fillOpacity={0.85} />

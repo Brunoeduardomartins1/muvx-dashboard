@@ -2,70 +2,109 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ─── Light Mode (padrão) ─────────────────────────────── */
 :root {
-  /* Brand Greens */
   --green: #08F887;
   --green-dark: #059660;
   --green-subtle: rgba(8, 248, 135, 0.12);
   --green-dim: #06D474;
   --green-surface: rgba(8, 248, 135, 0.06);
 
-  /* Superfícies Dark */
-  --dark: #0A0C10;
-  --dark-card: #18181B;
+  --bg-page: #FAFAFA;
+  --bg-card: #FFFFFF;
+  --bg-card-dark: #F3F4F6;
+  --bg-header: #FFFFFF;
 
-  /* Superfícies Light */
-  --background: #FAFAFA;
-  --surface: #FFFFFF;
-  --border: #E5E7EB;
+  --border-color: #E5E7EB;
+  --border-hover: rgba(8, 248, 135, 0.4);
 
-  /* Texto */
-  --text: #111827;
+  --text-primary: #111827;
   --text-secondary: #4B5563;
   --text-muted: #9CA3AF;
-  --text-on-dark: #FFFFFF;
 
-  /* Status */
-  --status-online: #08F887;
-  --status-processing: #F59E0B;
+  --skeleton-base: #E5E7EB;
+
   --status-error: #EF4444;
-  --status-inactive: #9CA3AF;
+  --status-processing: #F59E0B;
+}
+
+/* ─── Dark Mode ──────────────────────────────────────── */
+.dark {
+  --bg-page: #0A0C10;
+  --bg-card: #18181B;
+  --bg-card-dark: #1F2025;
+  --bg-header: #111317;
+
+  --border-color: #2A2D35;
+  --border-hover: rgba(8, 248, 135, 0.35);
+
+  --text-primary: #F9FAFB;
+  --text-secondary: #9CA3AF;
+  --text-muted: #6B7280;
+
+  --skeleton-base: #2A2D35;
 }
 
 @layer base {
-  * {
-    box-sizing: border-box;
-  }
+  * { box-sizing: border-box; }
 
   body {
-    background-color: var(--background);
-    color: var(--text);
+    background-color: var(--bg-page);
+    color: var(--text-primary);
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
+    transition: background-color 250ms ease, color 250ms ease;
   }
 }
 
 @layer components {
+  .card {
+    background-color: var(--bg-card);
+    border: 1px solid var(--border-color);
+    border-radius: 20px;
+    transition: transform 200ms ease, box-shadow 200ms ease, border-color 200ms ease;
+  }
+
+  .card:hover {
+    transform: translateY(-2px);
+    border-color: var(--border-hover);
+    box-shadow: 0 8px 32px rgba(8, 248, 135, 0.10);
+  }
+
+  .card-dark {
+    background-color: #18181B;
+    border: 1px solid var(--border-color);
+    border-radius: 20px;
+    transition: transform 200ms ease, box-shadow 200ms ease, border-color 200ms ease;
+  }
+
+  .card-dark:hover {
+    transform: translateY(-2px);
+    border-color: var(--border-hover);
+    box-shadow: 0 8px 32px rgba(8, 248, 135, 0.12);
+  }
+
+  /* Mantido para retrocompat */
   .card-hover {
     transition: transform 200ms ease, box-shadow 200ms ease, border-color 200ms ease;
   }
   .card-hover:hover {
     transform: translateY(-2px);
-    border-color: rgba(8, 248, 135, 0.4) !important;
-    box-shadow: 0 8px 32px rgba(8, 248, 135, 0.12);
+    border-color: var(--border-hover) !important;
+    box-shadow: 0 8px 32px rgba(8, 248, 135, 0.10);
   }
 }
 
 @layer utilities {
   .skeleton {
-    background-color: #E5E7EB;
+    background-color: var(--skeleton-base);
     border-radius: 8px;
     animation: skeleton-pulse 1.5s ease-in-out infinite;
   }
 
   @keyframes skeleton-pulse {
     0%, 100% { opacity: 1; }
-    50% { opacity: 0.45; }
+    50% { opacity: 0.4; }
   }
 
   .gradient-text {
