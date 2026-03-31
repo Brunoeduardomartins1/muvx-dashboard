@@ -147,6 +147,7 @@ export async function GET(req: NextRequest) {
   const purchasesTotal = purchasesData?.total ?? rawPurchases.length
 
   const purchasesByStatus: Record<string, number> = {}
+  const purchasesByStatusDetail: Record<string, Purchase[]> = {}
   const personalSalesMap: Record<string, {
     name: string
     completed: number
@@ -158,6 +159,20 @@ export async function GET(req: NextRequest) {
   for (const p of rawPurchases) {
     const status = p.status ?? 'UNKNOWN'
     purchasesByStatus[status] = (purchasesByStatus[status] ?? 0) + 1
+
+    // Acumula detalhe por status para drill-down
+    const purchaseDetail: Purchase = {
+      id: p.id ?? '',
+      studentName: p.student?.name ?? null,
+      personalName: p.personal?.name ?? null,
+      amount: Number(p.totalAmount ?? 0),
+      status,
+      createdAt: p.createdAt ?? null,
+      paymentMethod: p.paymentMethod ?? p.billingType ?? null,
+      planName: p.originalProduct?.name ?? null,
+    }
+    if (!purchasesByStatusDetail[status]) purchasesByStatusDetail[status] = []
+    purchasesByStatusDetail[status].push(purchaseDetail)
 
     const pid = p.personal?.id
     if (pid) {
@@ -249,6 +264,7 @@ export async function GET(req: NextRequest) {
     scheduledSales,
     cancelledSales,
     purchasesByStatus,
+    purchasesByStatusDetail,
     recentPurchases,
     personalsWithProduct,
     personalsWithSale,

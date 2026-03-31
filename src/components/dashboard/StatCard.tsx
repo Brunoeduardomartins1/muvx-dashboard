@@ -14,6 +14,7 @@ interface StatCardProps {
   suffix?: string
   icon?: React.ReactNode
   sublabel?: string
+  onClick?: () => void
 }
 
 export function StatCard({
@@ -25,6 +26,7 @@ export function StatCard({
   format = 'number',
   icon,
   sublabel,
+  onClick,
 }: StatCardProps) {
   const animated = useCountUp(value, 800)
 
@@ -35,7 +37,11 @@ export function StatCard({
 
   if (dark) {
     return (
-      <div className="card-dark rounded-card p-8">
+      <div
+        className="card-dark rounded-card p-8"
+        onClick={onClick}
+        style={onClick ? { cursor: 'pointer' } : undefined}
+      >
         <div className="flex items-start justify-between mb-5">
           <span
             className="text-xs font-sans font-600 uppercase tracking-widest"
@@ -69,7 +75,11 @@ export function StatCard({
   }
 
   return (
-    <div className="card rounded-card p-8">
+    <div
+      className="card rounded-card p-8"
+      onClick={onClick}
+      style={onClick ? { cursor: 'pointer' } : undefined}
+    >
       <div className="flex items-start justify-between mb-5">
         <span
           className="text-xs font-sans font-600 uppercase tracking-widest"

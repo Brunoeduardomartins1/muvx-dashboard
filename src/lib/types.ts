@@ -49,6 +49,7 @@ export interface MetricsResponse {
   scheduledSales: number        // vendas SCHEDULED (aguardando data de pagamento)
   cancelledSales: number        // vendas CANCELLED + CANCELLED_BY_STUDENT + CANCELLED_BY_PERSONAL
   purchasesByStatus: Record<string, number>
+  purchasesByStatusDetail: Record<string, Purchase[]>  // lista completa por status para drill-down
   recentPurchases: Purchase[]
 
   // Engajamento de personais

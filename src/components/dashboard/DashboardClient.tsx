@@ -1,5 +1,6 @@
 'use client'
 
+import { useState } from 'react'
 import { Users, UserCheck, DollarSign, TrendingUp, XCircle, Clock, Package, ShoppingCart, Percent } from 'lucide-react'
 import { useAutoRefresh } from '@/hooks/useAutoRefresh'
 import { usePeriod } from '@/hooks/usePeriod'
@@ -13,6 +14,14 @@ import { PipelineBar } from './PipelineBar'
 import { DataTable } from './DataTable'
 import { TopPersonais } from './TopPersonais'
 import { StatCardSkeleton } from '@/components/ui/Skeleton'
+import { DrillDownModal } from '@/components/ui/DrillDownModal'
+import type { Purchase } from '@/lib/types'
+
+interface ModalState {
+  title: string
+  subtitle?: string
+  purchases: Purchase[]
+}
 
 const REVENUE_GOAL = Number(process.env.NEXT_PUBLIC_MUVX_GOAL ?? 50000)
 
@@ -23,7 +32,15 @@ export function DashboardClient() {
     to: period.to,
   })
 
+  const [modal, setModal] = useState<ModalState | null>(null)
+
   const showSkeletons = isLoading && !data
+
+  function openModal(title: string, subtitle: string, statuses: string[]) {
+    const detail = data?.purchasesByStatusDetail ?? {}
+    const purchases = statuses.flatMap(s => detail[s] ?? [])
+    setModal({ title, subtitle, purchases })
+  }
 
   return (
     <div className="min-h-screen transition-colors duration-250" style={{ backgroundColor: 'var(--bg-page)' }}>
@@ -141,6 +158,7 @@ export function DashboardClient() {
                 value={data?.completedSales ?? 0}
                 icon={<TrendingUp size={16} />}
                 sublabel={`${data?.purchasesTotal ?? 0} total de compras`}
+                onClick={() => openModal('Vendas Realizadas', 'Compras com status Concluído', ['COMPLETED'])}
               />
               <StatCard
                 dark
@@ -148,12 +166,14 @@ export function DashboardClient() {
                 value={data?.scheduledSales ?? 0}
                 icon={<Clock size={16} />}
                 sublabel="aguardando vencimento"
+                onClick={() => openModal('Aguardando Pagamento', 'Compras agendadas para cobrança futura', ['SCHEDULED'])}
               />
               <StatCard
                 dark
                 label="Vendas Canceladas"
                 value={data?.cancelledSales ?? 0}
                 icon={<XCircle size={16} />}
+                onClick={() => openModal('Vendas Canceladas', 'Canceladas pelo personal, aluno ou sistema', ['CANCELLED', 'CANCELLED_BY_STUDENT', 'CANCELLED_BY_PERSONAL'])}
               />
               <StatCard
                 dark
@@ -162,6 +182,7 @@ export function DashboardClient() {
                 format="currency"
                 icon={<DollarSign size={16} />}
                 sublabel={`Fat. MUVX: R$ ${(data?.muvxRevenue ?? 0).toFixed(2).replace('.', ',')}`}
+                onClick={() => openModal('Vendas Transacionadas', 'Todas as compras concluídas no período', ['COMPLETED'])}
               />
             </>
           )}
@@ -207,6 +228,15 @@ export function DashboardClient() {
         </section>
 
       </main>
+
+      {modal && (
+        <DrillDownModal
+          title={modal.title}
+          subtitle={modal.subtitle}
+          purchases={modal.purchases}
+          onClose={() => setModal(null)}
+        />
+      )}
 
       <footer className="text-center py-6">
         <p className="text-xs font-sans" style={{ color: 'var(--text-muted)' }}>
