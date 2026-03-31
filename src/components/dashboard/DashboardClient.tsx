@@ -13,6 +13,7 @@ import { GoalGauge } from './GoalGauge'
 import { PipelineBar } from './PipelineBar'
 import { DataTable } from './DataTable'
 import { TopPersonais } from './TopPersonais'
+import { MuvxRevenueCard } from './MuvxRevenueCard'
 import { StatCardSkeleton } from '@/components/ui/Skeleton'
 import { DrillDownModal } from '@/components/ui/DrillDownModal'
 import type { Purchase } from '@/lib/types'
@@ -146,7 +147,7 @@ export function DashboardClient() {
           )}
         </section>
 
-        {/* Row 3 — Vendas e Financeiro no período */}
+        {/* Row 3 — Vendas: 2 cards + card grande MUVX + 2 cards */}
         <section className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6" aria-label="Vendas e financeiro">
           {showSkeletons ? (
             <><StatCardSkeleton dark /><StatCardSkeleton dark /><StatCardSkeleton dark /><StatCardSkeleton dark /></>
@@ -163,9 +164,10 @@ export function DashboardClient() {
               <StatCard
                 dark
                 label="Ag. Data Pagamento"
-                value={data?.scheduledSales ?? 0}
+                value={data?.scheduledRevenue ?? 0}
+                format="currency"
                 icon={<Clock size={16} />}
-                sublabel="aguardando vencimento"
+                sublabel={`${data?.scheduledSales ?? 0} vendas agendadas`}
                 onClick={() => openModal('Aguardando Pagamento', 'Compras agendadas para cobrança futura', ['SCHEDULED'])}
               />
               <StatCard
@@ -181,11 +183,21 @@ export function DashboardClient() {
                 value={data?.revenueInPeriod ?? 0}
                 format="currency"
                 icon={<DollarSign size={16} />}
-                sublabel={`Fat. MUVX: R$ ${(data?.muvxRevenue ?? 0).toFixed(2).replace('.', ',')}`}
+                sublabel={`${data?.completedSales ?? 0} vendas concluídas`}
                 onClick={() => openModal('Vendas Transacionadas', 'Todas as compras concluídas no período', ['COMPLETED'])}
               />
             </>
           )}
+        </section>
+
+        {/* Card grande — Faturamento MUVX */}
+        <section aria-label="Faturamento MUVX">
+          <MuvxRevenueCard
+            muvxRevenue={data?.muvxRevenue ?? 0}
+            revenueInPeriod={data?.revenueInPeriod ?? 0}
+            completedSales={data?.completedSales ?? 0}
+            isLoading={showSkeletons}
+          />
         </section>
 
         {/* Row 4 — Gráficos */}

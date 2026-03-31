@@ -205,6 +205,10 @@ export async function GET(req: NextRequest) {
     .filter(p => p.status === COMPLETED_STATUS)
     .reduce((sum, p) => sum + Number(p.totalAmount ?? 0), 0)
 
+  const scheduledRevenue = rawPurchases
+    .filter(p => p.status === SCHEDULED_STATUS)
+    .reduce((sum, p) => sum + Number(p.totalAmount ?? 0), 0)
+
   const muvxRevenue = revenueInPeriod * MUVX_FEE_PCT + completedSales * MUVX_FEE_FIXED
 
   // --- Personais cadastrados no período ---
@@ -262,6 +266,7 @@ export async function GET(req: NextRequest) {
     purchasesTotal,
     completedSales,
     scheduledSales,
+    scheduledRevenue,
     cancelledSales,
     purchasesByStatus,
     purchasesByStatusDetail,

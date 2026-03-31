@@ -47,6 +47,7 @@ export interface MetricsResponse {
   purchasesTotal: number        // total geral de compras (paginação)
   completedSales: number        // vendas COMPLETED
   scheduledSales: number        // vendas SCHEDULED (aguardando data de pagamento)
+  scheduledRevenue: number      // soma dos valores das vendas SCHEDULED
   cancelledSales: number        // vendas CANCELLED + CANCELLED_BY_STUDENT + CANCELLED_BY_PERSONAL
   purchasesByStatus: Record<string, number>
   purchasesByStatusDetail: Record<string, Purchase[]>  // lista completa por status para drill-down

@@ -78,7 +78,7 @@ export function TopPersonais({ topPersonals, isLoading }: Props) {
                   <td className="px-6 py-3.5 text-sm font-grotesk font-700" style={{ color: i === 0 ? '#08F887' : 'var(--text-muted)' }}>
                     {i + 1}
                   </td>
-                  <td className="px-6 py-3.5 text-sm font-sans font-500 max-w-[160px] truncate" style={{ color: 'var(--text-primary)' }}>
+                  <td className="px-6 py-3.5 text-sm font-sans font-500 max-w-[160px] truncate" style={{ color: 'var(--text-primary)' }} title={p.personalName}>
                     {p.personalName}
                   </td>
                   <td className="px-6 py-3.5 text-sm font-grotesk font-600" style={{ color: '#08F887' }}>

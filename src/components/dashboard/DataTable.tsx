@@ -61,13 +61,13 @@ export function DataTable({ purchases, isLoading }: Props) {
                   onMouseEnter={e => (e.currentTarget.style.backgroundColor = 'var(--bg-card-dark)')}
                   onMouseLeave={e => (e.currentTarget.style.backgroundColor = 'transparent')}
                 >
-                  <td className="px-6 py-3.5 text-sm font-sans font-500 max-w-[120px] truncate" style={{ color: 'var(--text-primary)' }}>
+                  <td className="px-6 py-3.5 text-sm font-sans font-500 max-w-[120px] truncate" style={{ color: 'var(--text-primary)' }} title={p.studentName ?? undefined}>
                     {p.studentName ?? '—'}
                   </td>
-                  <td className="px-6 py-3.5 text-sm font-sans max-w-[120px] truncate" style={{ color: 'var(--text-secondary)' }}>
+                  <td className="px-6 py-3.5 text-sm font-sans max-w-[120px] truncate" style={{ color: 'var(--text-secondary)' }} title={p.personalName ?? undefined}>
                     {p.personalName ?? '—'}
                   </td>
-                  <td className="px-6 py-3.5 text-sm font-sans max-w-[120px] truncate" style={{ color: 'var(--text-secondary)' }}>
+                  <td className="px-6 py-3.5 text-sm font-sans max-w-[120px] truncate" style={{ color: 'var(--text-secondary)' }} title={p.planName ?? undefined}>
                     {p.planName ?? '—'}
                   </td>
                   <td className="px-6 py-3.5 text-sm font-grotesk font-600 whitespace-nowrap" style={{ color: 'var(--text-primary)' }}>
