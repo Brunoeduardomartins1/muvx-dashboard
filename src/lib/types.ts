@@ -7,6 +7,8 @@ export interface Purchase {
   createdAt: string | null
   paymentMethod: string | null
   planName: string | null
+  billingType: string | null
+  recurrenceInterval: string | null
 }
 
 export interface PersonalRow {
@@ -14,18 +16,31 @@ export interface PersonalRow {
   personalName: string
   email: string | null
   productsCount: number
-  salesCount: number       // histórico total (_count.salesReceived)
+  salesCount: number
 }
 
 export interface TopPersonal {
   personalId: string
   personalName: string
-  completedSales: number    // COMPLETED
-  scheduledSales: number    // SCHEDULED
-  totalSales: number        // completed + scheduled
+  completedSales: number
+  scheduledSales: number
+  totalSales: number
   cancelledSales: number
-  grossRevenue: number      // soma dos totalAmount das vendas concluídas
-  muvxRevenue: number       // (grossRevenue * 0.02) + (completedSales * 3.99)
+  grossRevenue: number
+  muvxRevenue: number
+}
+
+export interface TopStudent {
+  studentId: string
+  studentName: string
+  totalSpent: number
+  purchasesCount: number
+}
+
+export interface WeekdaySales {
+  day: string        // 'Dom' | 'Seg' | ... | 'Sáb'
+  count: number
+  revenue: number
 }
 
 export interface MetricsResponse {
@@ -37,8 +52,8 @@ export interface MetricsResponse {
   totalPersonals: number
 
   // Totais no período selecionado
-  periodStudents: number      // alunos únicos que compraram no período
-  periodPersonals: number     // personais cadastrados no período
+  periodStudents: number
+  periodPersonals: number
 
   // Usuários ativos/inativos
   activeUsers: number
@@ -52,34 +67,60 @@ export interface MetricsResponse {
   // CREF
   crefVerified: number
   crefPending: number
+  crefApprovalRate: number   // verified / (verified + pending) * 100
 
   // Financeiro
-  revenueInPeriod: number       // soma das vendas concluídas (COMPLETED)
-  muvxRevenue: number           // faturamento MUVX = (revenueInPeriod * 0.02) + (completedCount * 3.99)
-  purchasesTotal: number        // total geral de compras (paginação)
-  completedSales: number        // vendas COMPLETED
-  scheduledSales: number        // vendas SCHEDULED (aguardando data de pagamento)
-  scheduledRevenue: number      // soma dos valores das vendas SCHEDULED
-  cancelledSales: number        // vendas CANCELLED + CANCELLED_BY_STUDENT + CANCELLED_BY_PERSONAL
+  revenueInPeriod: number
+  muvxRevenue: number
+  purchasesTotal: number
+  completedSales: number
+  scheduledSales: number
+  scheduledRevenue: number   // MRR estimado (receita futura garantida)
+  cancelledSales: number
+  avgTicket: number          // revenueInPeriod / completedSales
   purchasesByStatus: Record<string, number>
-  purchasesByStatusDetail: Record<string, Purchase[]>  // lista completa por status para drill-down
+  purchasesByStatusDetail: Record<string, Purchase[]>
   recentPurchases: Purchase[]
 
+  // Billing type breakdown
+  recurringCount: number     // RECURRING
+  oneTimeCount: number       // ONE_TIME
+  recurringRevenue: number
+  oneTimeRevenue: number
+  paymentMethodBreakdown: Record<string, number>   // PIX: 38, CREDIT_CARD: 20, ...
+  recurrenceBreakdown: Record<string, number>      // MONTHLY: 39, QUARTERLY: 7, ...
+
+  // Retenção e churn
+  churnRate: number          // canceladas / (canceladas + concluídas) * 100
+  inactivePersonals: number  // personais cadastrados há +30 dias sem nenhuma venda no período
+  activationRate: number     // personaisComProduto / totalPersonals * 100
+
+  // Funil: cadastrou → produto → venda
+  funnelRegistered: number   // totalPersonals
+  funnelWithProduct: number  // personalsWithProduct
+  funnelWithSale: number     // personalsWithSale (período)
+
+  // Ratings
+  avgRating: number          // média de averageRating dos personais com rating
+  totalRatedPersonals: number
+
   // Engajamento de personais
-  personalsWithProduct: number      // personais com ao menos 1 produto (histórico total)
-  personalsWithSale: number         // personais com venda no período selecionado
-  personalsWithSaleTotal: number    // personais com ao menos 1 venda histórica (total geral)
+  personalsWithProduct: number
+  personalsWithSale: number
+  personalsWithSaleTotal: number
+  personalsWithProductList: PersonalRow[]
+  personalsWithSaleList: PersonalRow[]
+  allPurchasesInPeriod: Purchase[]
 
-  // Listas para drill-down
-  personalsWithProductList: PersonalRow[]   // personais que têm produto
-  personalsWithSaleList: PersonalRow[]      // personais que venderam no período (do personalSalesMap)
-  allPurchasesInPeriod: Purchase[]          // todas as compras do período (para modais de totais)
-
-  // Top personais
+  // Top personais e alunos
   topPersonals: TopPersonal[]
+  topStudents: TopStudent[]
 
-  // Conversão: personais cadastrados vs personais que venderam
-  conversionRate: number        // personalsWithSale / totalPersonals * 100
+  // Vendas por dia da semana
+  salesByWeekday: WeekdaySales[]
+
+  // Conversão
+  conversionRate: number
 
   // Erros parciais
   errors: string[]
