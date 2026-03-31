@@ -99,20 +99,20 @@ export function DashboardClient() {
             <>
               <StatCard
                 dark
-                label="Total de Alunos"
-                value={data?.totalStudents ?? 0}
-                delta={data?.studentsGrowthLastMonth}
+                label="Alunos no Período"
+                value={data?.periodStudents ?? 0}
                 icon={<Users size={16} />}
+                sublabel={`${data?.totalStudents ?? 0} total histórico`}
                 onClick={() => openAllPurchasesModal('Compras de Alunos', 'Todas as compras no período — visão por aluno')}
               />
               <StatCard
                 dark
-                label="Total de Personais"
-                value={data?.totalPersonals ?? 0}
+                label="Personais no Período"
+                value={data?.periodPersonals ?? 0}
                 delta={data?.personalsGrowthLastMonth}
                 icon={<UserCheck size={16} />}
-                sublabel={`${data?.crefPending ?? 0} CREF pendentes`}
-                onClick={() => openPersonalsModal('Total de Personais', 'Personais com ao menos 1 produto cadastrado', data?.personalsWithProductList ?? [])}
+                sublabel={`${data?.totalPersonals ?? 0} total histórico · ${data?.crefPending ?? 0} CREF pend.`}
+                onClick={() => openPersonalsModal('Personais no Período', 'Personais cadastrados no período selecionado', data?.personalsWithProductList ?? [])}
               />
               <StatCard
                 dark

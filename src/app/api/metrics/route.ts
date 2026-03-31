@@ -36,7 +36,7 @@ interface RawPurchase {
   billingType?: string
   recurrenceInterval?: string
   originalProduct?: { name?: string }
-  student?: { name?: string; email?: string }
+  student?: { id?: string; name?: string; email?: string }
   personal?: { id?: string; name?: string; email?: string }
   paymentTransaction?: { status?: string }
 }
@@ -102,15 +102,17 @@ export async function GET(req: NextRequest) {
   }
 
   const purchasesPath = `/admin/purchases?limit=100&page=1&createdFrom=${encodeURIComponent(createdFrom)}&createdTo=${encodeURIComponent(createdTo)}`
+  const periodPersonalsPath = `/admin/personals?limit=1&page=1&createdFrom=${encodeURIComponent(createdFrom)}&createdTo=${encodeURIComponent(createdTo)}`
 
   // Busca página 1 de personals para descobrir totalPages, depois busca o restante em paralelo
-  const [dashboardResult, statsResult, overviewResult, purchasesResult, personalsPage1Result] =
+  const [dashboardResult, statsResult, overviewResult, purchasesResult, personalsPage1Result, periodPersonalsResult] =
     await Promise.allSettled([
       muvxGet<AdminDashboard>('/admin/dashboard', token),
       muvxGet<AdminStats>('/admin/dashboard/stats', token),
       muvxGet<AdminOverview>('/admin/stats/overview', token),
       muvxGet<AdminPurchasesResponse>(purchasesPath, token),
       muvxGet<AdminPersonalsResponse>('/admin/personals?limit=100&page=1', token),
+      muvxGet<AdminPersonalsResponse>(periodPersonalsPath, token),
     ])
 
   const dashboard = dashboardResult.status === 'fulfilled' ? dashboardResult.value : null
@@ -118,6 +120,8 @@ export async function GET(req: NextRequest) {
   const overview = overviewResult.status === 'fulfilled' ? overviewResult.value : null
   const purchasesData = purchasesResult.status === 'fulfilled' ? purchasesResult.value : null
   const personalsPage1 = personalsPage1Result.status === 'fulfilled' ? personalsPage1Result.value : null
+  const periodPersonalsData = periodPersonalsResult.status === 'fulfilled' ? periodPersonalsResult.value : null
+  const periodPersonals = periodPersonalsData?.meta?.total ?? 0
 
   if (!dashboard) errors.push('admin/dashboard indisponível')
   if (!stats) errors.push('admin/dashboard/stats indisponível')
@@ -209,6 +213,10 @@ export async function GET(req: NextRequest) {
       }
     }
   }
+
+  // Alunos únicos que compraram no período (pelo studentId nas purchases)
+  const uniqueStudentIds = new Set(rawPurchases.map(p => p.student?.id).filter(Boolean))
+  const periodStudents = uniqueStudentIds.size
 
   const completedSales = purchasesByStatus[COMPLETED_STATUS] ?? 0
   const scheduledSales = purchasesByStatus[SCHEDULED_STATUS] ?? 0
@@ -304,6 +312,8 @@ export async function GET(req: NextRequest) {
     totalUsers,
     totalStudents,
     totalPersonals,
+    periodStudents,
+    periodPersonals,
     activeUsers,
     inactiveUsers,
     usersGrowthLastMonth,

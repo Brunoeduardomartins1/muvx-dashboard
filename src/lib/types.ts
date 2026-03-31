@@ -31,10 +31,14 @@ export interface TopPersonal {
 export interface MetricsResponse {
   fetchedAt: string
 
-  // Totais
+  // Totais históricos (all-time)
   totalUsers: number
   totalStudents: number
   totalPersonals: number
+
+  // Totais no período selecionado
+  periodStudents: number      // alunos únicos que compraram no período
+  periodPersonals: number     // personais cadastrados no período
 
   // Usuários ativos/inativos
   activeUsers: number
