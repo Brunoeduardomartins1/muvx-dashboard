@@ -11,16 +11,11 @@ export function middleware(req: NextRequest) {
     return NextResponse.next()
   }
 
-  // Cron jobs autenticam via header Authorization: Bearer ${CRON_SECRET}
-  // (Vercel envia esse header automaticamente conforme vercel.json)
+  // Cron jobs: middleware roda em Edge runtime e não tem acesso confiável a process.env
+  // de variáveis privadas. A verificação do CRON_SECRET acontece dentro da própria rota
+  // (que roda em Node runtime). Aqui só liberamos passagem.
   if (pathname.startsWith('/api/cron/')) {
-    const cronSecret = process.env.CRON_SECRET
-    const auth = req.headers.get('authorization') ?? ''
-    console.log('[mw] cron path:', pathname, 'secretPresent:', !!cronSecret, 'secretLen:', cronSecret?.length ?? 0, 'authPresent:', !!auth, 'authLen:', auth.length)
-    if (cronSecret && auth === `Bearer ${cronSecret}`) {
-      return NextResponse.next()
-    }
-    return NextResponse.json({ message: 'Não autorizado' }, { status: 401 })
+    return NextResponse.next()
   }
 
   // Verifica cookie de sessão
