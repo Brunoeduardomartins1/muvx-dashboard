@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import type { MetricsResponse } from '@/lib/types'
+import { GET as getMetrics } from '@/app/api/metrics/route'
 import { fetchNewPersonalsWithActivation } from '@/lib/briefing/fetchActivation'
 import { computeBriefingData } from '@/lib/briefing/computeData'
 import { buildBriefingHtml, buildSlackMessage } from '@/lib/briefing/buildHtml'
@@ -58,25 +59,20 @@ function computeWindows(now: Date) {
   }
 }
 
-async function fetchMetrics(origin: string, sessionSecret: string, from: string, to: string): Promise<MetricsResponse> {
-  const url = `${origin}/api/metrics?from=${from}&to=${to}`
-  const res = await fetch(url, {
-    headers: { Cookie: `dash_session=${sessionSecret}` },
-    cache: 'no-store',
-  })
+/**
+ * Chama a função GET de /api/metrics diretamente, sem ir via HTTP.
+ * Isso evita o middleware Edge (que rejeita por não enxergar DASHBOARD_SECRET).
+ * Como ambas rotas rodam em Node runtime e compartilham processo, a chamada é instantânea.
+ */
+async function fetchMetrics(from: string, to: string): Promise<MetricsResponse> {
+  const url = `https://internal/api/metrics?from=${from}&to=${to}`
+  const fakeReq = new NextRequest(url)
+  const res = await getMetrics(fakeReq)
   if (!res.ok) {
-    throw new Error(`fetch metrics ${url} → ${res.status} ${await res.text().catch(() => '')}`)
+    const body = await res.text().catch(() => '')
+    throw new Error(`fetchMetrics(${from}→${to}) → ${res.status} ${body}`)
   }
-  return await res.json()
-}
-
-function getOrigin(req: NextRequest): string {
-  // Em produção, usar VERCEL_URL ou PUBLIC_BASE_URL. Em dev, derivar do host.
-  if (process.env.PUBLIC_BASE_URL) return process.env.PUBLIC_BASE_URL.replace(/\/$/, '')
-  if (process.env.VERCEL_URL) return `https://${process.env.VERCEL_URL}`
-  const proto = req.headers.get('x-forwarded-proto') ?? 'http'
-  const host = req.headers.get('host') ?? 'localhost:3000'
-  return `${proto}://${host}`
+  return await res.json() as MetricsResponse
 }
 
 export async function GET(req: NextRequest) {
@@ -86,17 +82,11 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ message: 'Não autorizado' }, { status: 401 })
   }
 
-  const sessionSecret = process.env.DASHBOARD_SECRET
-  if (!sessionSecret) {
-    return NextResponse.json({ message: 'DASHBOARD_SECRET não configurado' }, { status: 503 })
-  }
-
   const { searchParams } = new URL(req.url)
   const dryRun = searchParams.get('dryRun') === '1'
   const skipPdf = searchParams.get('skipPdf') === '1'
   const returnPdf = searchParams.get('returnPdf') === '1'  // download PDF direto, sem Slack
 
-  const origin = getOrigin(req)
   const goal = Number(process.env.NEXT_PUBLIC_MUVX_GOAL ?? GOAL_DEFAULT)
   const slackChannel = process.env.SLACK_BRIEFING_CHANNEL
   const slackToken = process.env.SLACK_USER_TOKEN
@@ -104,12 +94,13 @@ export async function GET(req: NextRequest) {
   const w = computeWindows(new Date())
 
   try {
-    // 4 fetches do /api/metrics em paralelo + 1 fetch dos novos do mês com activation
+    // 4 chamadas a /api/metrics em paralelo (chamadas in-process, não HTTP) +
+    // 1 fetch dos novos do mês com activation indicators
     const [d1Metrics, mtdMetrics, lastMonthSameDayMetrics, untilEomMetrics, newPersonalsMonth] = await Promise.all([
-      fetchMetrics(origin, sessionSecret, w.yesterdayISO, w.yesterdayISO),
-      fetchMetrics(origin, sessionSecret, w.monthStartISO, w.yesterdayISO),
-      fetchMetrics(origin, sessionSecret, w.lastMonthStartISO, w.lastMonthSameDayISO),
-      fetchMetrics(origin, sessionSecret, w.todayISO, w.monthEndISO).catch(() => null),
+      fetchMetrics(w.yesterdayISO, w.yesterdayISO),
+      fetchMetrics(w.monthStartISO, w.yesterdayISO),
+      fetchMetrics(w.lastMonthStartISO, w.lastMonthSameDayISO),
+      fetchMetrics(w.todayISO, w.monthEndISO).catch(() => null),
       fetchNewPersonalsWithActivation(`${w.monthStartISO}T00:00:00.000Z`, `${w.yesterdayISO}T23:59:59.999Z`),
     ])
 
