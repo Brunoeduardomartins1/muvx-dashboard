@@ -16,6 +16,7 @@ export function middleware(req: NextRequest) {
   if (pathname.startsWith('/api/cron/')) {
     const cronSecret = process.env.CRON_SECRET
     const auth = req.headers.get('authorization') ?? ''
+    console.log('[mw] cron path:', pathname, 'secretPresent:', !!cronSecret, 'secretLen:', cronSecret?.length ?? 0, 'authPresent:', !!auth, 'authLen:', auth.length)
     if (cronSecret && auth === `Bearer ${cronSecret}`) {
       return NextResponse.next()
     }

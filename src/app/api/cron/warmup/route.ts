@@ -20,6 +20,7 @@ export const maxDuration = 60
 export async function GET(req: NextRequest) {
   const auth = req.headers.get('authorization') ?? ''
   const cronSecret = process.env.CRON_SECRET
+  console.log('[warmup] CRON_SECRET present:', !!cronSecret, 'len:', cronSecret?.length ?? 0, 'authPresent:', !!auth, 'authLen:', auth.length, 'match:', cronSecret ? auth === `Bearer ${cronSecret}` : 'no-env')
   if (!cronSecret || auth !== `Bearer ${cronSecret}`) {
     return NextResponse.json({ message: 'Não autorizado' }, { status: 401 })
   }
