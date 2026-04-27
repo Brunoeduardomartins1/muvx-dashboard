@@ -1,15 +1,5 @@
 {
   "framework": "nextjs",
-  "crons": [
-    {
-      "path": "/api/cron/warmup",
-      "schedule": "25 11 * * *"
-    },
-    {
-      "path": "/api/cron/briefing-diario",
-      "schedule": "30 11 * * *"
-    }
-  ],
   "functions": {
     "src/app/api/cron/briefing-diario/route.ts": {
       "maxDuration": 60
