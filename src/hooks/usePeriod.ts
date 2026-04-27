@@ -2,7 +2,7 @@
 
 import { useState, useCallback } from 'react'
 
-export type PeriodPreset = 'today' | '7d' | '15d' | 'mtd' | 'ytd' | 'custom'
+export type PeriodPreset = 'today' | '7d' | '15d' | 'mtd' | 'ytd' | 'all' | 'custom'
 
 export interface Period {
   preset: PeriodPreset
@@ -41,6 +41,9 @@ function buildPeriod(preset: PeriodPreset, customFrom?: string, customTo?: strin
       const from = new Date(now.getFullYear(), 0, 1)
       return { preset, from: toISO(from), to: today, label: 'Este ano' }
     }
+    case 'all': {
+      return { preset, from: '2025-01-01', to: today, label: 'Tudo' }
+    }
     case 'custom': {
       const from = customFrom ?? today
       const to = customTo ?? today
@@ -55,10 +58,11 @@ export const PERIOD_PRESETS: { value: PeriodPreset; label: string }[] = [
   { value: '15d',   label: '15 dias' },
   { value: 'mtd',   label: 'Este mês' },
   { value: 'ytd',   label: 'Este ano' },
+  { value: 'all',   label: 'Tudo' },
 ]
 
 export function usePeriod() {
-  const [period, setPeriod] = useState<Period>(() => buildPeriod('mtd'))
+  const [period, setPeriod] = useState<Period>(() => buildPeriod('all'))
 
   const selectPreset = useCallback((preset: PeriodPreset) => {
     if (preset !== 'custom') {

@@ -3,7 +3,7 @@
 import { useEffect, useState, useMemo } from 'react'
 import { X, Download, ChevronUp, ChevronDown } from 'lucide-react'
 import type { Purchase, PersonalRow } from '@/lib/types'
-import { fmtBRL, fmtDate, fmtNum, PAYMENT_METHOD_LABELS } from '@/lib/utils'
+import { fmtBRL, fmtDate, fmtNum, PAYMENT_METHOD_LABELS, cancellationSource, cancellationReasonClean } from '@/lib/utils'
 import { StatusBadge } from '@/components/ui/Badge'
 import { ExcelFilter } from '@/components/ui/ExcelFilter'
 import { exportPurchasesCsv, exportPersonalsCsv } from '@/lib/exportCsv'
@@ -13,9 +13,18 @@ interface PersonalsModal { kind: 'personals'; title: string; subtitle?: string; 
 type Props = (PurchasesModal | PersonalsModal) & { onClose: () => void }
 
 const STATUS_LABELS_MODAL: Record<string, string> = {
-  COMPLETED: 'Concluído', ACTIVE: 'Ativo', SCHEDULED: 'Agendado',
-  CANCELLED: 'Cancelado', CANCELLED_BY_STUDENT: 'Canc. aluno',
-  CANCELLED_BY_PERSONAL: 'Canc. personal', PENDING: 'Pendente',
+  ACTIVE: 'Ativo',
+  INACTIVE: 'Expirado',
+  CANCELLED: 'Cancelado',
+  CANCELLED_BY_STUDENT: 'Canc. aluno',
+  CANCELLED_BY_PERSONAL: 'Canc. personal',
+  REFUNDED: 'Reembolsado',
+  // legados
+  COMPLETED: 'Concluído',
+  SCHEDULED: 'Agendado',
+  PENDING: 'Pendente',
+  EXPIRED: 'Expirado',
+  PAYMENT_PENDING: 'Ag. pagamento',
 }
 
 function unique<T>(arr: T[]): T[] { return Array.from(new Set(arr)) }
@@ -129,13 +138,16 @@ export function DrillDownModal(props: Props) {
 }
 
 // ── PurchasesTable ─────────────────────────────────────────────────────────────
-type PF = { student: Set<string>; personal: Set<string>; plan: Set<string>; amount: Set<string>; status: Set<string>; method: Set<string>; date: Set<string> }
-const PF0: PF = { student: new Set(), personal: new Set(), plan: new Set(), amount: new Set(), status: new Set(), method: new Set(), date: new Set() }
+const NEGATIVE_STATUSES = new Set(['CANCELLED', 'CANCELLED_BY_STUDENT', 'CANCELLED_BY_PERSONAL', 'EXPIRED', 'INACTIVE', 'REFUNDED'])
+type PF = { student: Set<string>; personal: Set<string>; plan: Set<string>; amount: Set<string>; status: Set<string>; method: Set<string>; date: Set<string>; source: Set<string> }
+const PF0: PF = { student: new Set(), personal: new Set(), plan: new Set(), amount: new Set(), status: new Set(), method: new Set(), date: new Set(), source: new Set() }
 
 function PurchasesTable({ items }: { items: Purchase[] }) {
   const [f, setF] = useState<PF>(PF0)
   const { key: sortKey, dir: sortDir, toggle } = useSortToggle('createdAt')
   const set = (k: keyof PF) => (s: Set<string>) => setF(p => ({ ...p, [k]: s }))
+
+  const showCancelCols = useMemo(() => items.some(p => NEGATIVE_STATUSES.has(p.status)), [items])
 
   const opts = useMemo(() => ({
     student:  unique(items.map(p => p.studentName ?? '—')).sort(),
@@ -145,6 +157,7 @@ function PurchasesTable({ items }: { items: Purchase[] }) {
     status:   unique(items.map(p => p.status)).sort(),
     method:   unique(items.map(p => p.paymentMethod ?? '')).filter(Boolean).sort(),
     date:     unique(items.map(p => fmtDate(p.createdAt))).sort(),
+    source:   unique(items.map(p => cancellationSource(p.status, p.cancellationReason))).sort(),
   }), [items])
 
   const filtered = useMemo(() => {
@@ -156,6 +169,7 @@ function PurchasesTable({ items }: { items: Purchase[] }) {
       if (f.status.size && !f.status.has(p.status)) return false
       if (f.method.size && !f.method.has(p.paymentMethod ?? '')) return false
       if (f.date.size && !f.date.has(fmtDate(p.createdAt))) return false
+      if (f.source.size && !f.source.has(cancellationSource(p.status, p.cancellationReason))) return false
       return true
     })
     rows = [...rows].sort((a, b) => {
@@ -186,6 +200,8 @@ function PurchasesTable({ items }: { items: Purchase[] }) {
     )
   }
 
+  const colCount = showCancelCols ? 9 : 7
+
   return (
     <table className="w-full">
       <thead className="sticky top-0" style={{ backgroundColor: 'var(--bg-card)', zIndex: 10 }}>
@@ -195,35 +211,53 @@ function PurchasesTable({ items }: { items: Purchase[] }) {
           <Th col="planName" label="Plano" filter={<ExcelFilter label="" values={opts.plan} selected={f.plan} onChangeSelected={set('plan')} />} />
           <Th col="amount" label="Valor" filter={<ExcelFilter label="" values={opts.amount} selected={f.amount} onChangeSelected={set('amount')} />} />
           <Th col="status" label="Status" filter={<ExcelFilter label="" values={opts.status.map(s => STATUS_LABELS_MODAL[s] ?? s)} rawValues={opts.status} selected={f.status} onChangeSelected={set('status')} />} />
+          {showCancelCols && (
+            <Th col="source" label="Cancelado por" filter={<ExcelFilter label="" values={opts.source} selected={f.source} onChangeSelected={set('source')} />} />
+          )}
+          {showCancelCols && (
+            <th className="px-4 py-3 text-left" style={{ minWidth: 180 }}>
+              <span className="text-xs font-sans font-600 uppercase tracking-widest" style={{ color: 'var(--text-muted)' }}>Motivo</span>
+            </th>
+          )}
           <Th col="paymentMethod" label="Método" filter={<ExcelFilter label="" values={opts.method.map(m => PAYMENT_METHOD_LABELS[m] ?? m)} rawValues={opts.method} selected={f.method} onChangeSelected={set('method')} />} />
           <Th col="createdAt" label="Data" filter={<ExcelFilter label="" values={opts.date} selected={f.date} onChangeSelected={set('date')} />} />
         </tr>
         <tr style={{ borderBottom: '1px solid var(--border-color)' }}>
-          <td colSpan={7} className="px-4 py-1.5 text-xs font-sans" style={{ color: 'var(--text-muted)', backgroundColor: 'var(--bg-page)' }}>
+          <td colSpan={colCount} className="px-4 py-1.5 text-xs font-sans" style={{ color: 'var(--text-muted)', backgroundColor: 'var(--bg-page)' }}>
             {filtered.length === items.length ? `${items.length} registros` : `${filtered.length} de ${items.length}`}
           </td>
         </tr>
       </thead>
       <tbody>
         {filtered.length === 0 ? (
-          <tr><td colSpan={7} className="px-6 py-10 text-center text-sm font-sans" style={{ color: 'var(--text-muted)' }}>Nenhum resultado para os filtros.</td></tr>
-        ) : filtered.map(p => (
-          <tr
-            key={p.id}
-            className="transition-colors duration-150"
-            style={{ borderBottom: '1px solid var(--border-color)' }}
-            onMouseEnter={e => (e.currentTarget.style.backgroundColor = 'var(--bg-card-dark)')}
-            onMouseLeave={e => (e.currentTarget.style.backgroundColor = 'transparent')}
-          >
-            <td className="px-4 py-3.5 text-sm font-sans font-500 max-w-[140px] truncate" style={{ color: 'var(--text-primary)' }} title={p.studentName ?? undefined}>{p.studentName ?? '—'}</td>
-            <td className="px-4 py-3.5 text-sm font-sans max-w-[140px] truncate" style={{ color: 'var(--text-secondary)' }} title={p.personalName ?? undefined}>{p.personalName ?? '—'}</td>
-            <td className="px-4 py-3.5 text-sm font-sans max-w-[130px] truncate" style={{ color: 'var(--text-secondary)' }} title={p.planName ?? undefined}>{p.planName ?? '—'}</td>
-            <td className="px-4 py-3.5 text-sm font-grotesk font-600 whitespace-nowrap" style={{ color: 'var(--text-primary)' }}>{fmtBRL(p.amount)}</td>
-            <td className="px-4 py-3.5"><StatusBadge status={p.status} /></td>
-            <td className="px-4 py-3.5 text-sm font-sans" style={{ color: 'var(--text-secondary)' }}>{p.paymentMethod ? (PAYMENT_METHOD_LABELS[p.paymentMethod] ?? p.paymentMethod) : '—'}</td>
-            <td className="px-4 py-3.5 text-sm font-sans whitespace-nowrap" style={{ color: 'var(--text-muted)' }}>{fmtDate(p.createdAt)}</td>
-          </tr>
-        ))}
+          <tr><td colSpan={colCount} className="px-6 py-10 text-center text-sm font-sans" style={{ color: 'var(--text-muted)' }}>Nenhum resultado para os filtros.</td></tr>
+        ) : filtered.map(p => {
+          const reason = cancellationReasonClean(p.cancellationReason)
+          const source = cancellationSource(p.status, p.cancellationReason)
+          return (
+            <tr
+              key={p.id}
+              className="transition-colors duration-150"
+              style={{ borderBottom: '1px solid var(--border-color)' }}
+              onMouseEnter={e => (e.currentTarget.style.backgroundColor = 'var(--bg-card-dark)')}
+              onMouseLeave={e => (e.currentTarget.style.backgroundColor = 'transparent')}
+            >
+              <td className="px-4 py-3.5 text-sm font-sans font-500 max-w-[140px] truncate" style={{ color: 'var(--text-primary)' }} title={p.studentName ?? undefined}>{p.studentName ?? '—'}</td>
+              <td className="px-4 py-3.5 text-sm font-sans max-w-[140px] truncate" style={{ color: 'var(--text-secondary)' }} title={p.personalName ?? undefined}>{p.personalName ?? '—'}</td>
+              <td className="px-4 py-3.5 text-sm font-sans max-w-[130px] truncate" style={{ color: 'var(--text-secondary)' }} title={p.planName ?? undefined}>{p.planName ?? '—'}</td>
+              <td className="px-4 py-3.5 text-sm font-grotesk font-600 whitespace-nowrap" style={{ color: 'var(--text-primary)' }}>{fmtBRL(p.amount)}</td>
+              <td className="px-4 py-3.5"><StatusBadge status={p.status} /></td>
+              {showCancelCols && (
+                <td className="px-4 py-3.5 text-sm font-sans whitespace-nowrap" style={{ color: 'var(--text-secondary)' }}>{NEGATIVE_STATUSES.has(p.status) ? source : '—'}</td>
+              )}
+              {showCancelCols && (
+                <td className="px-4 py-3.5 text-sm font-sans max-w-[220px] truncate" style={{ color: 'var(--text-muted)' }} title={p.cancellationReason ?? undefined}>{reason}</td>
+              )}
+              <td className="px-4 py-3.5 text-sm font-sans" style={{ color: 'var(--text-secondary)' }}>{p.paymentMethod ? (PAYMENT_METHOD_LABELS[p.paymentMethod] ?? p.paymentMethod) : '—'}</td>
+              <td className="px-4 py-3.5 text-sm font-sans whitespace-nowrap" style={{ color: 'var(--text-muted)' }}>{fmtDate(p.createdAt)}</td>
+            </tr>
+          )
+        })}
       </tbody>
     </table>
   )

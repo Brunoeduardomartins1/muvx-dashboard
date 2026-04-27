@@ -4,7 +4,7 @@ import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid,
   Tooltip, ResponsiveContainer, Cell,
 } from 'recharts'
-import { STATUS_LABELS, STATUS_COLORS, fmtNum } from '@/lib/utils'
+import { STATUS_GROUP_LABELS, STATUS_GROUP_COLORS, groupPurchaseStatuses, fmtNum, type StatusGroup } from '@/lib/utils'
 
 interface Props {
   purchasesByStatus: Record<string, number>
@@ -18,11 +18,10 @@ interface TooltipProps {
 
 const CustomTooltip = ({ active, payload, label }: TooltipProps) => {
   if (active && payload && payload.length) {
-    const status = String(label)
     return (
       <div style={{ background: '#18181B', border: '1px solid #2A2D35', borderRadius: 12, padding: '10px 16px' }}>
         <p style={{ fontSize: 10, color: '#6B7280', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: 4 }}>
-          {STATUS_LABELS[status] ?? status}
+          {String(label)}
         </p>
         <p style={{ fontFamily: 'var(--font-space-grotesk)', fontWeight: 700, color: '#08F887', fontSize: 20 }}>
           {fmtNum(payload[0].value)}
@@ -34,12 +33,14 @@ const CustomTooltip = ({ active, payload, label }: TooltipProps) => {
 }
 
 export default function BarChartInner({ purchasesByStatus }: Props) {
-  const data = Object.entries(purchasesByStatus)
-    .map(([status, count]) => ({
-      status,
-      label: STATUS_LABELS[status] ?? status,
+  const grouped = groupPurchaseStatuses(purchasesByStatus)
+  const data = (Object.entries(grouped) as [StatusGroup, number][])
+    .filter(([, count]) => count > 0)
+    .map(([group, count]) => ({
+      status: group,
+      label: STATUS_GROUP_LABELS[group],
       count,
-      color: STATUS_COLORS[status] ?? '#9CA3AF',
+      color: STATUS_GROUP_COLORS[group],
     }))
     .sort((a, b) => b.count - a.count)
 

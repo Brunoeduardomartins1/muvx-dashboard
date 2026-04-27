@@ -11,7 +11,6 @@ interface Alert {
 
 interface Props {
   churnRate: number
-  crefPending: number
   inactivePersonals: number
   completedSales: number
   avgRating: number
@@ -20,14 +19,12 @@ interface Props {
 const THRESHOLDS = {
   churnRateWarn: Number(process.env.NEXT_PUBLIC_ALERT_CHURN_WARN ?? 15),
   churnRateCrit: Number(process.env.NEXT_PUBLIC_ALERT_CHURN_CRIT ?? 30),
-  crefPendingWarn: Number(process.env.NEXT_PUBLIC_ALERT_CREF_WARN ?? 50),
-  crefPendingCrit: Number(process.env.NEXT_PUBLIC_ALERT_CREF_CRIT ?? 100),
   inactiveWarn: Number(process.env.NEXT_PUBLIC_ALERT_INACTIVE_WARN ?? 100),
   ratingWarn: Number(process.env.NEXT_PUBLIC_ALERT_RATING_WARN ?? 3.5),
   zeroSalesWarn: true,
 }
 
-export function AlertBanner({ churnRate, crefPending, inactivePersonals, completedSales, avgRating }: Props) {
+export function AlertBanner({ churnRate, inactivePersonals, completedSales, avgRating }: Props) {
   const [dismissed, setDismissed] = useState<Set<string>>(new Set())
 
   const alerts: Alert[] = []
@@ -36,12 +33,6 @@ export function AlertBanner({ churnRate, crefPending, inactivePersonals, complet
     alerts.push({ id: 'churn-crit', level: 'critical', message: `Churn crítico: ${churnRate.toFixed(1)}% das vendas foram canceladas no período (limite: ${THRESHOLDS.churnRateCrit}%)` })
   } else if (churnRate >= THRESHOLDS.churnRateWarn) {
     alerts.push({ id: 'churn-warn', level: 'warn', message: `Churn elevado: ${churnRate.toFixed(1)}% das vendas canceladas (limite: ${THRESHOLDS.churnRateWarn}%)` })
-  }
-
-  if (crefPending >= THRESHOLDS.crefPendingCrit) {
-    alerts.push({ id: 'cref-crit', level: 'critical', message: `${crefPending} personais aguardando aprovação CREF — acima do limite crítico de ${THRESHOLDS.crefPendingCrit}` })
-  } else if (crefPending >= THRESHOLDS.crefPendingWarn) {
-    alerts.push({ id: 'cref-warn', level: 'warn', message: `${crefPending} personais com CREF pendente (limite: ${THRESHOLDS.crefPendingWarn})` })
   }
 
   if (inactivePersonals >= THRESHOLDS.inactiveWarn) {

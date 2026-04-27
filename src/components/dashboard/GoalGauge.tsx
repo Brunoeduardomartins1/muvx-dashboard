@@ -14,7 +14,7 @@ interface Props {
   isLoading?: boolean
 }
 
-export function GoalGauge({ revenue, goal = 50000, isLoading }: Props) {
+export function GoalGauge({ revenue, goal = 10000, isLoading }: Props) {
   if (isLoading) return <RingSkeleton />
 
   return (

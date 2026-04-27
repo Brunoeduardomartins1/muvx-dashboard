@@ -38,25 +38,25 @@ export function StatCard({
   if (dark) {
     return (
       <div
-        className="card-dark rounded-card p-8"
+        className="card-dark rounded-card p-5 sm:p-8"
         onClick={onClick}
         style={onClick ? { cursor: 'pointer' } : undefined}
       >
-        <div className="flex items-start justify-between mb-5">
+        <div className="flex items-start justify-between mb-4 sm:mb-5 gap-2">
           <span
-            className="text-xs font-sans font-600 uppercase tracking-widest"
+            className="text-[11px] sm:text-xs font-sans font-600 uppercase tracking-widest min-w-0"
             style={{ color: '#6B7280' }}
           >
             {label}
           </span>
           {icon && (
-            <div className="w-9 h-9 rounded-xl flex items-center justify-center" style={{ backgroundColor: 'rgba(8,248,135,0.1)', color: '#08F887' }}>
+            <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl flex items-center justify-center flex-shrink-0" style={{ backgroundColor: 'rgba(8,248,135,0.1)', color: '#08F887' }}>
               {icon}
             </div>
           )}
         </div>
 
-        <div className="font-grotesk font-700 text-4xl leading-none mb-2" style={{ color: '#08F887' }}>
+        <div className="font-grotesk font-700 text-3xl sm:text-4xl leading-none mb-2 break-words" style={{ color: '#08F887' }}>
           {format === 'currency' ? fmtBRL(animated) : fmtNum(animated)}
         </div>
 
@@ -76,25 +76,25 @@ export function StatCard({
 
   return (
     <div
-      className="card rounded-card p-8"
+      className="card rounded-card p-5 sm:p-8"
       onClick={onClick}
       style={onClick ? { cursor: 'pointer' } : undefined}
     >
-      <div className="flex items-start justify-between mb-5">
+      <div className="flex items-start justify-between mb-4 sm:mb-5 gap-2">
         <span
-          className="text-xs font-sans font-600 uppercase tracking-widest"
+          className="text-[11px] sm:text-xs font-sans font-600 uppercase tracking-widest min-w-0"
           style={{ color: 'var(--text-muted)' }}
         >
           {label}
         </span>
         {icon && (
-          <div className="w-9 h-9 rounded-xl flex items-center justify-center" style={{ backgroundColor: 'rgba(8,248,135,0.1)', color: '#08F887' }}>
+          <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl flex items-center justify-center flex-shrink-0" style={{ backgroundColor: 'rgba(8,248,135,0.1)', color: '#08F887' }}>
             {icon}
           </div>
         )}
       </div>
 
-      <div className="font-grotesk font-700 text-4xl leading-none mb-2" style={{ color: 'var(--text-primary)' }}>
+      <div className="font-grotesk font-700 text-3xl sm:text-4xl leading-none mb-2 break-words" style={{ color: 'var(--text-primary)' }}>
         {format === 'currency' ? fmtBRL(animated) : fmtNum(animated)}
       </div>
 

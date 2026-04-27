@@ -25,32 +25,32 @@ export function Header({ lastUpdated, isLoading, onRefresh }: HeaderProps) {
 
   return (
     <header
-      className="flex items-center justify-between py-4 px-6 border-b transition-colors duration-250"
+      className="flex items-center justify-between py-3 sm:py-4 px-4 sm:px-6 border-b transition-colors duration-250"
       style={{
         backgroundColor: 'var(--bg-header)',
         borderColor: 'var(--border-color)',
       }}
     >
-      <div className="flex items-center gap-4">
+      <div className="flex items-center gap-3 sm:gap-4 min-w-0">
         {/* Logo: light = secundária (escura), dark = primária (clara) */}
-        <div className="relative h-8 w-auto">
+        <div className="relative h-7 sm:h-8 w-auto flex-shrink-0">
           <Image
             src={isDark ? '/logo-dark.png' : '/logo-light.png'}
             alt="MUVX"
             height={32}
             width={120}
-            className="h-8 w-auto object-contain"
+            className="h-7 sm:h-8 w-auto object-contain"
             priority
           />
         </div>
 
-        <div className="w-px h-5" style={{ backgroundColor: 'var(--border-color)' }} />
+        <div className="w-px h-5 hidden sm:block" style={{ backgroundColor: 'var(--border-color)' }} />
 
-        <div>
-          <h1 className="font-grotesk font-700 text-base leading-tight" style={{ color: 'var(--text-primary)' }}>
+        <div className="min-w-0">
+          <h1 className="font-grotesk font-700 text-sm sm:text-base leading-tight truncate" style={{ color: 'var(--text-primary)' }}>
             Dashboard Analítico
           </h1>
-          <p className="text-xs font-sans uppercase tracking-widest" style={{ color: 'var(--text-muted)' }}>
+          <p className="text-[10px] sm:text-xs font-sans uppercase tracking-widest hidden sm:block" style={{ color: 'var(--text-muted)' }}>
             Métricas em Tempo Real
           </p>
         </div>

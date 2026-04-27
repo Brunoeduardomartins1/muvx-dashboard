@@ -1,12 +1,11 @@
 'use client'
 
-import { STATUS_LABELS, STATUS_COLORS, fmtNum } from '@/lib/utils'
+import { STATUS_GROUP_LABELS, STATUS_GROUP_COLORS, groupPurchaseStatuses, fmtNum, type StatusGroup } from '@/lib/utils'
 import { Skeleton } from '@/components/ui/Skeleton'
 
 interface Props {
   purchasesByStatus: Record<string, number>
   totalPersonals: number
-  crefPending: number
   isLoading?: boolean
 }
 
@@ -22,17 +21,19 @@ function PipelineSkeleton() {
   )
 }
 
-export function PipelineBar({ purchasesByStatus, totalPersonals, crefPending, isLoading }: Props) {
+export function PipelineBar({ purchasesByStatus, totalPersonals, isLoading }: Props) {
   if (isLoading) return <PipelineSkeleton />
 
   const total = Object.values(purchasesByStatus).reduce((a, b) => a + b, 0)
-  const segments = Object.entries(purchasesByStatus)
-    .map(([status, count]) => ({
-      status,
-      label: STATUS_LABELS[status] ?? status,
+  const grouped = groupPurchaseStatuses(purchasesByStatus)
+  const segments = (Object.entries(grouped) as [StatusGroup, number][])
+    .filter(([, count]) => count > 0)
+    .map(([group, count]) => ({
+      status: group,
+      label: STATUS_GROUP_LABELS[group],
       count,
       pct: total > 0 ? (count / total) * 100 : 0,
-      color: STATUS_COLORS[status] ?? '#9CA3AF',
+      color: STATUS_GROUP_COLORS[group],
     }))
     .sort((a, b) => b.count - a.count)
 
@@ -69,16 +70,6 @@ export function PipelineBar({ purchasesByStatus, totalPersonals, crefPending, is
               Personais
             </p>
           </div>
-          {crefPending > 0 && (
-            <div className="text-right">
-              <p className="font-grotesk font-700 text-xl" style={{ color: '#F59E0B' }}>
-                {fmtNum(crefPending)}
-              </p>
-              <p className="text-xs font-sans uppercase tracking-wide" style={{ color: 'var(--text-muted)' }}>
-                CREF Pend.
-              </p>
-            </div>
-          )}
         </div>
       </div>
 
